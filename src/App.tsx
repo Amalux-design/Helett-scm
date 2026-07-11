@@ -655,6 +655,25 @@ function calcTrend(avg7, avg30) {
   if (ratio >= 0.6)  return "▼ Falling";
   return "▼▼ Strong Down";
 }
+// Change this single value to swap the sidebar logo icon (emoji, short glyph, or svg jsx)
+const LOGO_ICON = (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+    <circle cx="9" cy="9" r="5.5" stroke="#7c9aff" strokeWidth="2.2"/>
+    <circle cx="15" cy="15" r="5.5" stroke="#5a6cff" strokeWidth="2.2"/>
+  </svg>
+);
+
+const NAV_ICONS = {
+  input:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/></svg>,
+  dashboard:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>,
+  allskus:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>,
+  fc:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>,
+  lis:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8 13h8M8 17h5"/></svg>,
+  procurement:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>,
+  skumgr:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+  warnings:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/></svg>,
+};
+
 function trendColor(trend, t) {
   if (trend.includes("▲")) return t.green;
   if (trend.includes("↗")) return t.green;
@@ -843,7 +862,7 @@ const DARK={
   purple:"#9485D6",purpleBg:"rgba(148,133,214,.09)",
   orange:"#D08652",orangeBg:"rgba(208,134,82,.09)",
   rowHover:"rgba(255,255,255,.03)",
-  sidebar:"#1C1F26",sbBorder:"rgba(255,255,255,.05)",sbMuted:"rgba(255,255,255,.30)",
+  sidebar:"#101216",sbBorder:"rgba(255,255,255,.06)",sbMuted:"rgba(255,255,255,.30)",
   sbItem:"rgba(255,255,255,.58)",sbItemHover:"rgba(255,255,255,.88)",
   sbHover:"rgba(255,255,255,.045)",sbActive:"rgba(91,143,224,.13)",sbActiveText:"#9bbcec",
   tooltipBg:"#20242C",
@@ -859,7 +878,7 @@ const LIGHT={
   purple:"#6A4FB6",purpleBg:"rgba(106,79,182,.06)",
   orange:"#A35A2E",orangeBg:"rgba(163,90,46,.06)",
   rowHover:"rgba(0,0,0,.018)",
-  sidebar:"#21242B",sbBorder:"rgba(255,255,255,.05)",sbMuted:"rgba(255,255,255,.30)",
+  sidebar:"#171A21",sbBorder:"rgba(255,255,255,.06)",sbMuted:"rgba(255,255,255,.30)",
   sbItem:"rgba(255,255,255,.58)",sbItemHover:"rgba(255,255,255,.88)",
   sbHover:"rgba(255,255,255,.05)",sbActive:"rgba(58,111,216,.16)",sbActiveText:"#cddbf7",
   tooltipBg:"#21242B",
@@ -873,32 +892,32 @@ function makeCSS(t){return `
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{height:100%;font-size:13px;overflow:hidden}
 body{height:100%;overflow:hidden;background:${t.bg};color:${t.text};font-family:'Inter',system-ui,sans-serif;line-height:1.45;-webkit-font-smoothing:antialiased}
-#fba-root{display:flex;height:100vh;width:100%;overflow:hidden;position:fixed;top:0;left:0;right:0;bottom:0}
+#fba-root{display:flex;height:100vh;width:100%;overflow:hidden;position:fixed;top:0;left:0;right:0;bottom:0;text-align:left}
+.content,.topbar,.tb-title,.tb-sub,.ch,.card,.kc,h1,h2,h3,p,div{text-align:left}
 .sb{width:240px;flex:0 0 240px;background:${t.sidebar};border-right:1px solid ${t.sbBorder};display:flex;flex-direction:column;transition:width .2s ease,flex-basis .2s ease;overflow:hidden}
 .sb.col{width:52px;flex-basis:52px}
-.sb-logo{padding:14px 14px 12px;border-bottom:1px solid ${t.sbBorder};display:flex;align-items:center;gap:10px;min-height:50px;flex-shrink:0}
+.sb-logo{padding:16px 16px 14px;border-bottom:1px solid ${t.sbBorder};display:flex;align-items:center;gap:9px;min-height:54px;flex-shrink:0}
 .sb-icon{width:30px;height:30px;background:${t.accent};border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .sb-icon-svg{width:16px;height:16px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .sb-txt{overflow:hidden;min-width:0}
-.sb-txt h1{font-size:13px;font-weight:700;color:#fff;white-space:nowrap;letter-spacing:-.2px}
+.sb-txt h1{font-size:19px;font-weight:700;color:#fff;white-space:nowrap;letter-spacing:-.3px}
 .sb-txt p{font-size:10px;color:${t.sbMuted};font-family:'Inter',system-ui,sans-serif;margin-top:1px;white-space:nowrap}
 .sb.col .sb-txt{display:none}
-.sb-nav{flex:1;padding:10px 8px;overflow-y:auto;overflow-x:hidden}
+.sb-nav{flex:1;padding:14px 10px;overflow-y:auto;overflow-x:hidden}
 .sb-sec{margin-bottom:18px}
-.sb-lbl{font-size:9px;font-weight:600;color:${t.sbMuted};letter-spacing:1px;text-transform:uppercase;padding:0 8px;margin-bottom:4px;white-space:nowrap}
+.sb-lbl{font-size:9px;font-weight:600;color:${t.sbMuted};letter-spacing:1px;text-transform:uppercase;padding:0 8px;margin-bottom:6px;white-space:nowrap}
 .sb.col .sb-lbl{opacity:0}
-.ni{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;color:${t.sbItem};transition:background .12s,color .12s;margin-bottom:1px;white-space:nowrap;overflow:hidden;position:relative;min-height:34px;letter-spacing:-.1px}
+.ni{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:9px;cursor:pointer;font-size:13px;font-weight:500;color:${t.sbItem};transition:background .15s,color .15s;margin-bottom:3px;white-space:nowrap;overflow:hidden;position:relative;min-height:38px;letter-spacing:-.1px}
 .ni:hover{background:${t.sbHover};color:${t.sbItemHover}}
-.ni.on{background:${t.sbActive};color:${t.sbActiveText};font-weight:600;box-shadow:inset 3px 0 0 0 ${t.accent}}
+.ni.on{background:${t.sbActive};color:${t.sbActiveText};font-weight:600;box-shadow:inset 2.5px 0 0 0 ${t.accent}}
 .ni.disabled{opacity:.25;cursor:not-allowed;pointer-events:none}
-.ni-ic{width:28px;min-width:28px;text-align:center;flex-shrink:0;display:flex;align-items:center;justify-content:center;opacity:.7}
-.ni.on .ni-ic{opacity:1}
-.ni-txt{flex:1;overflow:hidden;text-overflow:ellipsis}
+.ni-ic{width:22px;min-width:22px;height:22px;display:flex;align-items:center;justify-content:center;opacity:.65;flex-shrink:0}
+.ni.on .ni-ic{opacity:1;color:${t.sbActiveText}}
+.ni-txt{overflow:hidden;text-overflow:ellipsis}
 .sb.col .ni-txt{display:none}
-.nb{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:9px;font-weight:600;padding:1px 6px;border-radius:10px;font-family:'Inter',system-ui,sans-serif;flex-shrink:0;line-height:16px;background:rgba(201,96,96,.14);color:${t.red};border:1px solid rgba(201,96,96,.28)}
-.nb.y{background:rgba(196,139,42,.14);color:${t.yellow};border:1px solid rgba(196,139,42,.28)}
-.nb.b{background:rgba(96,126,212,.14);color:${t.accent};border:1px solid rgba(96,126,212,.28)}
-.sb.col .nb{position:absolute;top:4px;right:4px;font-size:8px;padding:0 4px;line-height:14px}
+.nb{margin-left:8px;font-size:10px;font-weight:600;padding:1px 7px;border-radius:10px;font-family:'Inter',system-ui,sans-serif;flex-shrink:0;line-height:16px;background:rgba(255,255,255,.10);color:${t.sbItemHover};border:1px solid rgba(255,255,255,.08)}
+.nb.y,.nb.b{background:rgba(255,255,255,.10);color:${t.sbItemHover};border:1px solid rgba(255,255,255,.08)}
+.sb.col .nb{position:absolute;top:4px;right:4px;font-size:8px;padding:0 4px;line-height:14px;margin-left:0}
 .sb-foot{padding:10px 8px;border-top:1px solid ${t.sbBorder};display:flex;justify-content:center;cursor:pointer;color:${t.sbMuted};transition:color .12s;user-select:none;flex-shrink:0}
 .sb-foot:hover{color:${t.sbItemHover}}
 .sb-foot-icon{width:18px;height:18px;display:block}
@@ -914,12 +933,14 @@ body{height:100%;overflow:hidden;background:${t.bg};color:${t.text};font-family:
 .content{flex:1;overflow-y:auto;overflow-x:hidden;padding:24px 32px 32px}
 .card{background:${t.surface};border:1px solid ${t.border};border-radius:12px;padding:20px;min-width:0;overflow:hidden;width:100%;box-sizing:border-box;box-shadow:0 1px 2px rgba(0,0,0,.04)}
 .ch{font-size:13px;font-weight:600;color:${t.text2};margin-bottom:14px}
-.kg{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:16px;width:100%}
-.kc{background:${t.surface};border:1px solid ${t.border};border-radius:12px;padding:16px 18px;position:relative;overflow:hidden;min-width:0;box-shadow:0 1px 2px rgba(0,0,0,.04)}
-.kc::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:${t.border2};border-radius:12px 12px 0 0}
+.kg{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;margin-bottom:16px;width:100%}
+.kc{background:${t.surface};border:1px solid ${t.border};border-radius:16px;padding:16px 18px 18px;position:relative;overflow:hidden;min-width:0;box-shadow:0 1px 3px rgba(0,0,0,.05);transition:transform .12s,box-shadow .12s}
+.kc:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.07)}
+.kc::after{display:none}
 .kc.r::after{background:${t.red}}.kc.y::after{background:${t.yellow}}
 .kc.g::after{background:${t.green}}.kc.p::after{background:${t.purple}}.kc.b::after{background:${t.accent}}
-.kl{font-size:13px;color:${t.text2};font-weight:500;margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kl{font-size:13px;color:${t.text2};font-weight:500;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;justify-content:space-between}
+.kl::after{content:'↗';font-size:12px;color:${t.text3};opacity:.5}
 .kv{font-size:28px;font-weight:700;color:${t.text};line-height:1;font-family:'Inter',system-ui,sans-serif;letter-spacing:-.3px;font-feature-settings:"tnum" 1}
 .ks{font-size:12px;color:${t.text3};margin-top:6px;font-family:'Inter',system-ui,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tw{overflow-x:auto;width:100%;max-width:100%;-webkit-overflow-scrolling:touch}
@@ -943,16 +964,19 @@ tr.cr{cursor:pointer}
 .bpr{background:${t.orangeBg};color:${t.orange};border:1px solid ${t.orange}55;font-weight:700}
 
 /* ── STICKY SETTINGS BAR ── */
-.sbar{background:${t.surface};border:1px solid ${t.border};border-radius:0 0 12px 12px;padding:16px 18px;margin-bottom:16px;min-width:0;overflow:hidden;width:100%;position:sticky;top:0;z-index:10;box-shadow:0 2px 8px rgba(0,0,0,.06)}
-.sbar-top{border-radius:10px}
+.sbar{background:${t.surface};border:1px solid ${t.border};border-radius:16px;padding:18px 20px;margin-bottom:16px;min-width:0;overflow:hidden;width:100%;position:sticky;top:0;z-index:10;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.sbar-top{border-radius:16px}
 
-.sg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;min-width:0;width:100%}
-.slg{min-width:0}.slg label{font-size:10px;color:${t.text2};font-weight:500;display:flex;justify-content:space-between;margin-bottom:6px;user-select:none;letter-spacing:-.1px}
-.slg label span{color:${t.accent};font-family:'Inter',system-ui,sans-serif;font-weight:600}
-input[type=range]{width:100%;max-width:100%;appearance:none;height:2px;background:${t.border2};border-radius:2px;outline:none;cursor:pointer;display:block}
-input[type=range]::-webkit-slider-thumb{appearance:none;width:14px;height:14px;border-radius:50%;background:${t.accent};cursor:pointer;border:2px solid ${t.surface};box-shadow:0 0 0 1px ${t.accent};transition:transform .1s}
+.sg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;min-width:0;width:100%}
+.slg{min-width:0;padding:0 24px;border-right:1px solid ${t.border}}
+.slg:first-child{padding-left:0}
+.slg:last-child{border-right:none;padding-right:0}
+.slg label{font-size:12px;color:${t.text2};font-weight:500;display:flex;justify-content:space-between;margin-bottom:11px;user-select:none;letter-spacing:-.1px}
+.slg label span{color:${t.text};font-family:'Inter',system-ui,sans-serif;font-weight:700;font-size:13px}
+input[type=range]{width:100%;max-width:100%;appearance:none;height:2px;background:${t.border};border-radius:2px;outline:none;cursor:pointer;display:block}
+input[type=range]::-webkit-slider-thumb{appearance:none;width:12px;height:12px;border-radius:50%;background:${t.accent};cursor:pointer;border:2px solid ${t.surface};box-shadow:0 0 0 1px ${t.accent};transition:transform .1s}
 input[type=range]:active::-webkit-slider-thumb{transform:scale(1.15)}
-.sbar-info{margin-top:9px;font-size:9px;color:${t.text3};font-family:'Inter',system-ui,sans-serif;line-height:1.6}
+.sbar-info{margin-top:14px;padding-top:12px;border-top:1px solid ${t.border};font-size:10px;color:${t.text3};font-family:'Inter',system-ui,sans-serif;line-height:1.6}
 .sbar-info strong{color:${t.text2}}
 .btn{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid transparent;font-family:'Inter',system-ui,sans-serif;transition:all .12s;letter-spacing:-.1px}
 .bp{background:${t.accent};color:#fff;border-color:${t.accent}}.bp:hover{opacity:.88}.bp:active{opacity:.75;transform:scale(.98)}
@@ -1416,6 +1440,17 @@ const DataInput = forwardRef(function DataInput({onLoaded,loading,setLoading,t,p
         <span>✓</span>
         <span><strong>sales logic:</strong> Counts all orders except Cancelled + Returns · Anchor = latest date in dataset · Pending orders included · </span>
       </div>
+      <div className="card" style={{marginBottom:18}}>
+        <div className="ch">Google Sheets — Live Connection</div>
+        <div style={{fontSize:10,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif",marginBottom:11}}>
+          Sheet must be public. Tabs: <strong>Inventory</strong> · <strong>Sales</strong> · <strong>Ledger</strong> (optional) · <strong>Leadtime</strong> (optional)
+        </div>
+        <div style={{display:"flex",gap:8,marginBottom:9}}>
+          <input className="ti" value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://docs.google.com/spreadsheets/d/..."/>
+          <button className="btn bp" onClick={loadSheets} disabled={loading}>{loading?"Fetching…":"Connect"}</button>
+        </div>
+        {extractSheetId(url)&&<div style={{fontSize:9,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif"}}>Sheet ID: {extractSheetId(url)}</div>}
+      </div>
       <div className="igrid">
         {[{k:"inventory",l:"Inventory",s:"Required · ASIN, SKU, FC Sellable, FBA Available, Inbound"},
           {k:"orders",l:"Orders / Sales",s:"Required · purchase-date, asin, sku, quantity, order-status, ship-state"},
@@ -1432,17 +1467,6 @@ const DataInput = forwardRef(function DataInput({onLoaded,loading,setLoading,t,p
         <button className="btn bp" onClick={loadCSV} disabled={loading||!files.inventory||!files.orders}>
           {loading?"Processing…":"▶ Load & Calculate"}</button>
         {(!files.inventory||!files.orders)&&<span style={{fontSize:10,color:t.text3}}>Inventory + Orders required</span>}
-      </div>
-      <div className="card">
-        <div className="ch">Google Sheets — Live Connection</div>
-        <div style={{fontSize:10,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif",marginBottom:11}}>
-          Sheet must be public. Tabs: <strong>Inventory</strong> · <strong>Sales</strong> · <strong>Ledger</strong> (optional) · <strong>Leadtime</strong> (optional)
-        </div>
-        <div style={{display:"flex",gap:8,marginBottom:9}}>
-          <input className="ti" value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://docs.google.com/spreadsheets/d/..."/>
-          <button className="btn bp" onClick={loadSheets} disabled={loading}>{loading?"Fetching…":"Connect"}</button>
-        </div>
-        {extractSheetId(url)&&<div style={{fontSize:9,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif"}}>Sheet ID: {extractSheetId(url)}</div>}
       </div>
       {err&&<div className="alert ar" style={{marginTop:10}}><span>⚠</span><span>{err}</span></div>}
       {parseDebug&&<div style={{marginTop:12,background:t.surface,border:`1px solid ${t.border}`,borderRadius:10,padding:12}}>
@@ -3890,7 +3914,8 @@ export default function FBAPlanner(){
       {/* SIDEBAR */}
       <div className={`sb${col?" col":""}`}>
         <div className="sb-logo">
-          <div className="sb-txt"><h1>📦 Helett Inventory Planner</h1></div>
+          {LOGO_ICON}
+          <div className="sb-txt"><h1>Inventory Forecast</h1></div>
         </div>
         <div className="sb-nav">
           <div className="sb-sec">
@@ -3901,7 +3926,7 @@ export default function FBAPlanner(){
                 <div key={tb.id}
                   className={`ni${tab===tb.id||(tab==="detail"&&tb.id==="allskus")?" on":""}${disabled?" disabled":""}`}
                   onClick={()=>{if(disabled)return;setSelSku(null);setTab(tb.id);}}>
-                  <span className="ni-ic" style={{fontSize:9,fontFamily:"'Inter',system-ui,sans-serif",fontWeight:700,letterSpacing:".5px",color:"inherit"}}>{tb.ic}</span>
+                  <span className="ni-ic">{NAV_ICONS[tb.id]}</span>
                   <span className="ni-txt">{tb.l}</span>
                   {tb.badge>0&&<span className={`nb${tb.bc?" "+tb.bc:""}`}>{tb.badge}</span>}
                 </div>
