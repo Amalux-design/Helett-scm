@@ -3936,7 +3936,7 @@ export default function FBAPlanner(){
       <div className={`sb${col?" col":""}`}>
         <div className="sb-logo">
           {LOGO_ICON}
-          <div className="sb-txt"><h1>Helett</h1></div>
+          <div className="sb-txt"><h1>Inventory Forecast</h1></div>
         </div>
         <div className="sb-nav">
           <div className="sb-sec">
