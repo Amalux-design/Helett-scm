@@ -926,9 +926,9 @@ body{height:100%;overflow:hidden;background:${t.bg};color:${t.text};font-family:
 .tb-title{font-size:14px;font-weight:600;color:${t.text};white-space:nowrap;letter-spacing:-.2px;overflow:hidden;text-overflow:ellipsis;max-width:340px}
 .tb-sub{font-size:10px;color:${t.text3};font-family:'Inter',system-ui,sans-serif;white-space:nowrap}
 .tb-r{margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0;overflow:hidden}
-.tb-btn{padding:5px 11px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:500;background:rgb(78, 78, 78);border:1px solid rgba(86, 110, 156, 0.38);color:${t.text2};transition:all .12s;font-family:'Inter',system-ui,sans-serif;white-space:nowrap;letter-spacing:-.1px}
+.tb-btn{padding:5px 11px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600;background:#fff;border:1px solid #fff;color:#111;transition:all .12s;font-family:'Inter',system-ui,sans-serif;white-space:nowrap;letter-spacing:-.1px}
 .tb-btn-accent{padding:5px 11px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:500;background:rgb(0, 0, 0);border:1px solid ${t.accent};color:${t.text2};transition:all .12s;font-family:'Inter',system-ui,sans-serif;white-space:nowrap;letter-spacing:-.1px}
-.tb-btn:hover{color:${t.text};border-color:${t.border2}}
+.tb-btn:hover{opacity:.88}
 .tb-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:5px;font-size:10px;font-weight:600;font-family:'Inter',system-ui,sans-serif;white-space:nowrap}
 .content{flex:1;overflow-y:auto;overflow-x:hidden;padding:24px 32px 32px}
 .card{background:${t.surface};border:1px solid ${t.border};border-radius:12px;padding:20px;min-width:0;overflow:hidden;width:100%;box-sizing:border-box;box-shadow:0 1px 2px rgba(0,0,0,.04)}
@@ -974,8 +974,9 @@ tr.cr{cursor:pointer}
 .slg label{font-size:12px;color:${t.text2};font-weight:500;display:flex;justify-content:space-between;margin-bottom:11px;user-select:none;letter-spacing:-.1px}
 .slg label span{color:${t.text};font-family:'Inter',system-ui,sans-serif;font-weight:700;font-size:13px}
 input[type=range]{width:100%;max-width:100%;appearance:none;height:2px;background:${t.border};border-radius:2px;outline:none;cursor:pointer;display:block}
-input[type=range]::-webkit-slider-thumb{appearance:none;width:12px;height:12px;border-radius:50%;background:${t.accent};cursor:pointer;border:2px solid ${t.surface};box-shadow:0 0 0 1px ${t.accent};transition:transform .1s}
+input[type=range]::-webkit-slider-thumb{appearance:none;width:12px;height:12px;border-radius:50%;background:#fff;cursor:pointer;border:none;box-shadow:none;transition:transform .1s}
 input[type=range]:active::-webkit-slider-thumb{transform:scale(1.15)}
+input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:#fff;cursor:pointer;border:none;box-shadow:none}
 .sbar-info{margin-top:14px;padding-top:12px;border-top:1px solid ${t.border};font-size:10px;color:${t.text3};font-family:'Inter',system-ui,sans-serif;line-height:1.6}
 .sbar-info strong{color:${t.text2}}
 .btn{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid transparent;font-family:'Inter',system-ui,sans-serif;transition:all .12s;letter-spacing:-.1px}
@@ -1021,8 +1022,8 @@ input[type=range]:active::-webkit-slider-thumb{transform:scale(1.15)}
 .empty p{font-size:11px;line-height:1.7;color:${t.text3}}
 .d2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .d4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
-.bk{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:500;cursor:pointer;color:${t.text2};background:rgb(78, 78, 78);border:1px solid rgba(86, 110, 156, 0.38);transition:all .12s;margin-bottom:12px;letter-spacing:-.1px}
-.bk:hover{color:${t.text};border-color:${t.border2}}
+.bk{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;color:#111;background:#fff;border:1px solid #fff;transition:all .12s;margin-bottom:12px;letter-spacing:-.1px}
+.bk:hover{opacity:.88}
 .ac{padding:11px;background:${t.surface2};border-radius:7px;border:1px solid ${t.border}}
 .acl{font-size:11px;color:${t.text3};margin-bottom:4px;font-weight:500}
 .acv{font-size:20px;font-weight:700;font-family:'Inter',system-ui,sans-serif;letter-spacing:-.5px}
@@ -2957,6 +2958,20 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
   if(!sku) return null;
   const {velocity:vel, planning:pl, forecast, fcPlanning, hasFCData, regionalSales, citySales, salesHistory} = sku;
 
+  const [bkVisible,setBkVisible]=useState(true);
+  useEffect(()=>{
+    const scroller=document.querySelector(".content");
+    if(!scroller)return;
+    let lastY=scroller.scrollTop;
+    const onScroll=()=>{
+      const y=scroller.scrollTop;
+      setBkVisible(y<=lastY||y<40);
+      lastY=y;
+    };
+    scroller.addEventListener("scroll",onScroll,{passive:true});
+    return()=>scroller.removeEventListener("scroll",onScroll);
+  },[]);
+
   // Per-SKU lead time from file; Additional Lead Time slider = extra buffer on top
   const seaLTBase = sku.skuSeaLT ?? null;
   const airLTBase = sku.skuAirLT ?? null;
@@ -3103,7 +3118,13 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
   };
 
   return(<div>
-    <div className="bk" onClick={onBack}>← Back to All SKUs</div>
+    <div className="bk" onClick={onBack} style={{
+      position:"sticky",top:8,zIndex:20,
+      transform:bkVisible?"translateY(0)":"translateY(-140%)",
+      opacity:bkVisible?1:0,
+      transition:"transform .22s ease,opacity .22s ease",
+      boxShadow:"0 4px 12px rgba(0,0,0,.18)",
+    }}>← Back</div>
     <SBar settings={settings} setSettings={setSettings} t={t}/>
 
     {/* Per-SKU Lead Time */}
@@ -3915,7 +3936,7 @@ export default function FBAPlanner(){
       <div className={`sb${col?" col":""}`}>
         <div className="sb-logo">
           {LOGO_ICON}
-          <div className="sb-txt"><h1>Inventory Forecast</h1></div>
+          <div className="sb-txt"><h1>Helett</h1></div>
         </div>
         <div className="sb-nav">
           <div className="sb-sec">
