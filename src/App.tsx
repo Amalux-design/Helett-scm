@@ -702,7 +702,7 @@ function calcPlanning(inv, vel, settings) {
   const reorderThreshold = seaLT + saf;
   const required = demand * reorderThreshold;
   const gap = Math.max(0, reorderThreshold - doi);
-  const netReq = required + gap * demand;
+  const netReq = gap * demand;
   const suggestedBuy = Math.round(netReq);
   // Deduct already-purchased units (on-order PO) from net requirement
   const poUnitsVal = inv._poUnits || 0;
@@ -713,7 +713,7 @@ function calcPlanning(inv, vel, settings) {
   const seaETA = seaLT; // days from now
   const stockDaysLeft = isFinite(doi) ? doi : seaETA + 1;
   const needsAir = demand > 0 && stockDaysLeft < seaETA;
-  const airWindowDays = needsAir ? Math.max(0, seaETA - Math.max(0, stockDaysLeft)) : 0;
+  const airWindowDays = needsAir ? Math.max(0, seaETA - Math.max(stockDaysLeft, airLT)) : 0;
   const airQtyRec = Math.round(airWindowDays * demand);
   const seaQtyRec = Math.max(0, suggestedBuy - airQtyRec);
   const targetFBA = demand*fcd;
@@ -926,7 +926,7 @@ body{height:100%;overflow:hidden;background:${t.bg};color:${t.text};font-family:
 .tb-title{font-size:14px;font-weight:600;color:${t.text};white-space:nowrap;letter-spacing:-.2px;overflow:hidden;text-overflow:ellipsis;max-width:340px}
 .tb-sub{font-size:10px;color:${t.text3};font-family:'Inter',system-ui,sans-serif;white-space:nowrap}
 .tb-r{margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0;overflow:hidden}
-.tb-btn{padding:5px 11px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600;background:#fff;border:1px solid #fff;color:#111;transition:all .12s;font-family:'Inter',system-ui,sans-serif;white-space:nowrap;letter-spacing:-.1px}
+.tb-btn{padding:5px 11px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600;background:#ffffffbb;border:1px solid #ffffff;color:#111;transition:all .12s;font-family:'Inter',system-ui,sans-serif;white-space:nowrap;letter-spacing:-.1px}
 .tb-btn-accent{padding:5px 11px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:500;background:rgb(0, 0, 0);border:1px solid ${t.accent};color:${t.text2};transition:all .12s;font-family:'Inter',system-ui,sans-serif;white-space:nowrap;letter-spacing:-.1px}
 .tb-btn:hover{opacity:.88}
 .tb-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:5px;font-size:10px;font-weight:600;font-family:'Inter',system-ui,sans-serif;white-space:nowrap}
@@ -2977,7 +2977,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
   const airLTBase = sku.skuAirLT ?? null;
   const defaultLT = seaLTBase ?? settings.totalLeadTime;
   const [ltAdj, setLtAdj] = useState(0);
-  const effectiveLT = defaultLT + ltAdj + settings.totalLeadTime;
+  const effectiveLT = seaLTBase != null ? (defaultLT + ltAdj + settings.totalLeadTime) : (defaultLT + ltAdj);
   const effectiveAirLT = airLTBase != null ? airLTBase + ltAdj + settings.totalLeadTime : null;
 
   // Recompute local planning values with per-SKU LTs + adjustment
@@ -2985,7 +2985,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
   const localDoi = vel.demand > 0 ? (sku.currentStock / vel.demand) : Infinity;
   const localGap = Math.max(0, (effectiveLT + settings.safetyDays) - localDoi);
   const localRequired = vel.demand * (effectiveLT + settings.safetyDays);
-  const localSuggestedPurchaseRaw = Math.round(localRequired + Math.max(0, localGap) * vel.demand);
+  const localSuggestedPurchaseRaw = Math.round(Math.max(0, localGap) * vel.demand);
   const currentPoUnits = poUnits?.[sku.asin] ?? 0;
   // Auto-fetched open POs from Purchases sheet (non-Delivered, this ASIN)
   const skuPoRows = (purchRows||[]).filter(r=>{
@@ -3015,40 +3015,14 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
 
   let localAirQty = 0;
   let localSeaQty = localSuggestedPurchase;
-  let splitScenario = 1; // 1=all sea, 2=sea urgent, 3=split, 4=crisis air
+  let splitScenario = 1; // 1=all sea, 3=split (air bridges shortfall), 4=crisis air
 
-  if (localSuggestedPurchase > 0 && vel.demand > 0) {
-    if (!hasAir) {
-      // No air LT data — can only recommend sea
-      splitScenario = 1;
-      localSeaQty = localSuggestedPurchase;
-      localAirQty = 0;
-    } else if (stockDaysLeft >= effectiveLT) {
-      // Scenario 1: healthy, all sea
-      splitScenario = 1;
-      localSeaQty = localSuggestedPurchase;
-      localAirQty = 0;
-    } else if (stockDaysLeft >= effectiveAirLT) {
-      // Scenario 2: stock lasts until air arrives but not sea
-      // Sea order placed now covers everything, but sea deadline is urgent
-      splitScenario = 2;
-      localSeaQty = localSuggestedPurchase;
-      localAirQty = 0;
-    } else if (stockDaysLeft >= 0) {
-      // Scenario 3: stock runs out before sea, but air can bridge
-      // Air covers: from stockout until sea arrives = (effectiveLT - stockDaysLeft) days of demand
-      // But capped at (effectiveLT - effectiveAirLT) days max (the real air window)
-      const gapDays = effectiveLT - effectiveAirLT; // days air bridges before sea
-      const airBridgeQty = Math.ceil(gapDays * vel.demand);
-      localAirQty = Math.min(airBridgeQty, localSuggestedPurchase);
-      localSeaQty = Math.max(0, localSuggestedPurchase - localAirQty);
-      splitScenario = 3;
-    } else {
-      // Scenario 4: already stocked out — air everything needed urgently
-      splitScenario = 4;
-      localAirQty = localSuggestedPurchase;
-      localSeaQty = 0;
-    }
+  if (localSuggestedPurchase > 0 && vel.demand > 0 && hasAir) {
+    const shortfallDays = Math.max(0, effectiveLT - Math.max(stockDaysLeft, effectiveAirLT)); // air only covers airLT->seaLT window
+    const airBridgeQty = Math.ceil(shortfallDays * vel.demand);
+    localAirQty = Math.min(airBridgeQty, localSuggestedPurchase);
+    localSeaQty = Math.max(0, localSuggestedPurchase - localAirQty);
+    splitScenario = stockDaysLeft < 0 ? 4 : (localAirQty > 0 ? 3 : 1);
   }
 
   // ── FC manual inbound overrides (persisted to localStorage, keyed asin::fc) ──
