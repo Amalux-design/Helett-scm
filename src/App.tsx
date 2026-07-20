@@ -803,13 +803,13 @@ function computeAll(inv, salesByAsinDay, fcData, settings, anchorDate, regionalS
     // Centralized effective stock — only affects planning/DOI/forecast, not FC breakdown
     const inboundUnits = (d.inbound||0) + (d.processing||0)*0.8;
     // On Hand = FBA Available + FC Transfer; toggle FC Transfer in/out
-    const baseOnHand = inclTransfer ? (d.onHand||0) : (d.fbaAvailable||0);
-    const fbaStock   = inclFBA     ? baseOnHand : 0;
+    const fbaStock      = inclFBA      ? (d.fbaAvailable||0) : 0;
+    const transferStock = inclTransfer ? (d.fcTransfer||0)   : 0;
     const fcStock    = inclFC      ? (d.fcSellable||0) : 0;
     const inbStock   = inclInbound ? inboundUnits : 0;
-    const effectiveStock = fbaStock + fcStock + inbStock;
+    const effectiveStock = fbaStock + transferStock + fcStock + inbStock;
     // effectiveFBA for replenishQty calc
-    const effectiveFBA = inclFBA ? baseOnHand : (inclFC ? effectiveStock : baseOnHand);
+    const effectiveFBA = fbaStock + transferStock;
     const invWithAnchor = { ...d, _anchor: anchorDate, currentStock: effectiveStock, fbaAvailable: effectiveFBA,
       _rawFbaAvailable: d.fbaAvailable||0,
       _seaLT: ltData?.[asin]?.sea?.transitDays ?? null,
