@@ -3966,7 +3966,10 @@ export default function FBAPlanner(){
   );
   return (<>
     <FBAPlannerApp/>
-    <button onClick={logout} title="Log out" style={{position:"fixed",bottom:8,right:8,zIndex:9999,padding:"4px 10px",fontSize:11,borderRadius:6,border:"1px solid #263043",background:"#151b27",color:"#9fb0c8",cursor:"pointer",opacity:.7}}>Log out</button>
+    <div style={{position:"fixed",bottom:12,right:12,zIndex:9999,display:"flex",alignItems:"center",gap:8,padding:"6px 8px 6px 12px",fontSize:12,borderRadius:8,border:"1px solid #263043",background:"#151b27",color:"#9fb0c8",boxShadow:"0 2px 8px rgba(0,0,0,.35)"}}>
+      <span style={{maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{(()=>{try{return JSON.parse(localStorage.getItem(AUTH_KEY)||"{}").email||"";}catch(_){return "";}})()}</span>
+      <button onClick={()=>{ if(window.confirm("Log out of this device?")) logout(); }} style={{padding:"4px 10px",fontSize:12,fontWeight:600,borderRadius:6,border:"none",background:"#ef4444",color:"#fff",cursor:"pointer"}}>Log out</button>
+    </div>
   </>);
 }
 
