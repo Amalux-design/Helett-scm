@@ -3964,16 +3964,12 @@ export default function FBAPlanner(){
       </form>
     </div>
   );
-  return (<>
-    <FBAPlannerApp/>
-    <div style={{position:"fixed",bottom:12,right:12,zIndex:9999,display:"flex",alignItems:"center",gap:8,padding:"6px 8px 6px 12px",fontSize:12,borderRadius:8,border:"1px solid #263043",background:"#151b27",color:"#9fb0c8",boxShadow:"0 2px 8px rgba(0,0,0,.35)"}}>
-      <span style={{maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{(()=>{try{return JSON.parse(localStorage.getItem(AUTH_KEY)||"{}").email||"";}catch(_){return "";}})()}</span>
-      <button onClick={()=>{ if(window.confirm("Log out of this device?")) logout(); }} style={{padding:"4px 10px",fontSize:12,fontWeight:600,borderRadius:6,border:"none",background:"#ef4444",color:"#fff",cursor:"pointer"}}>Log out</button>
-    </div>
-  </>);
+  let authEmail="";
+  try{ authEmail=JSON.parse(localStorage.getItem(AUTH_KEY)||"{}").email||""; }catch(_){}
+  return <FBAPlannerApp onLogout={logout} authEmail={authEmail}/>;
 }
 
-function FBAPlannerApp(){
+function FBAPlannerApp({onLogout,authEmail}:{onLogout?:()=>void;authEmail?:string}){
   const dataInputRef=useRef(null);
   const[dark,setDark]=useState(true);
   const[parseDebug,setParseDebug]=useState(null);
@@ -4226,6 +4222,7 @@ style={{
             <button className="tb-btn" onClick={()=>dataInputRef.current?.refreshSheets()} disabled={loading} title="Re-fetch data from Google Sheets">{loading?"Refreshing…":"⟳ Refresh"}</button>
             <button className="tb-btn" onClick={()=>{if(window.confirm("Reset Purchased Units, Priority Demand and Add Inbound for every SKU back to default? This can't be undone."))resetManualValues();}} title="Reset Purchased Units, Priority Demand and Add Inbound for every SKU back to default">↺ Reset Values</button>
             <button className="tb-btn-accent" onClick={()=>setDark(d=>!d)}>{dark?"Light":"Dark"}</button>
+            {onLogout&&<button className="tb-btn" onClick={()=>{if(window.confirm("Log out of this device?"))onLogout();}} title={authEmail?`Signed in as ${authEmail}`:"Log out"}>⏻ Log out</button>}
           </div>
         </div>
         <div className="content">
