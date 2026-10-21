@@ -4219,10 +4219,10 @@ style={{
               </span>
             )}
             
-            <button className="tb-btn" onClick={()=>dataInputRef.current?.refreshSheets()} disabled={loading} title="Re-fetch data from Google Sheets">{loading?"Refreshing…":"⟳ Refresh"}</button>
-            <button className="tb-btn" onClick={()=>{if(window.confirm("Reset Purchased Units, Priority Demand and Add Inbound for every SKU back to default? This can't be undone."))resetManualValues();}} title="Reset Purchased Units, Priority Demand and Add Inbound for every SKU back to default">↺ Reset Values</button>
-            <button className="tb-btn-accent" onClick={()=>setDark(d=>!d)}>{dark?"Light":"Dark"}</button>
-            {onLogout&&<button className="tb-btn" onClick={()=>{if(window.confirm("Log out of this device?"))onLogout();}} title={authEmail?`Signed in as ${authEmail}`:"Log out"}>⏻ Log out</button>}
+            <button className="tb-btn pri" onClick={()=>dataInputRef.current?.refreshSheets()} disabled={loading} title="Re-fetch data from Google Sheets">{loading?"Refreshing…":"⟳ Refresh"}</button>
+            <button className="tb-btn danger" onClick={()=>{if(window.confirm("Reset Purchased Units, Priority Demand and Add Inbound for every SKU back to default? This can't be undone."))resetManualValues();}} title="Reset Purchased Units, Priority Demand and Add Inbound for every SKU back to default">↺ Reset Values</button>
+            <button className="tb-btn" onClick={()=>setDark(d=>!d)}>{dark?"Light":"Dark"}</button>
+            {onLogout&&<button className="tb-btn" onClick={()=>{if(window.confirm("Log out of this device?"))onLogout();}} title={authEmail?`Signed in as ${authEmail}`:"Log out"}>Log out</button>}
           </div>
         </div>
         <div className="content">
