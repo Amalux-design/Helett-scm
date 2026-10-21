@@ -1288,7 +1288,7 @@ function InventoryHealthBar({skus, t}) {
             formatter={(v,_,{payload})=>[`${v} SKUs (${Math.round(v/total*100)}%)`,payload.label]}
             cursor={{fill:`${t.accent}08`}}
           />
-          <Bar dataKey="count" radius={[0,4,4,0]} maxBarSize={20} isAnimationActive={false}>
+          <Bar dataKey="count" radius={[0,4,4,0]} maxBarSize={20}>
             {data.map((d,i)=><Cell key={i} fill={d.color} fillOpacity={.82}/>)}
           </Bar>
         </BarChart>
@@ -1406,7 +1406,7 @@ function Dashboard({data,settings,setSettings,onSku,t,purchRows}){
                 formatter={v=>[`${v}d`,`Days of Inventory`]}
                 cursor={{fill:`${t.accent}08`}}
               />
-              <Bar dataKey="doi" radius={[0,4,4,0]} maxBarSize={18} isAnimationActive={false}>
+              <Bar dataKey="doi" radius={[0,4,4,0]} maxBarSize={18}>
                 {atRisk.map((e,i)=>(
                   <Cell key={i} fill={doiBarColor(e.priority)} fillOpacity={.8}/>
                 ))}
@@ -1434,7 +1434,7 @@ function Dashboard({data,settings,setSettings,onSku,t,purchRows}){
             formatter={v=>[`${v} u/day`,"Demand"]}
             cursor={{fill:`${t.accent}08`}}
           />
-          <Bar dataKey="demand" fill={t.accent} fillOpacity={.75} radius={[3,3,0,0]} maxBarSize={36} isAnimationActive={false}/>
+          <Bar dataKey="demand" fill={t.accent} fillOpacity={.75} radius={[3,3,0,0]} maxBarSize={36}/>
         </BarChart>
       </ResponsiveContainer>
     </div>}
@@ -3612,7 +3612,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
             formatter={v=>[fmt(v),"Units sold"]}
             contentStyle={{background:t.tooltipBg,border:`1px solid ${t.border}`,borderRadius:8,fontSize:12,fontFamily:"'Inter',system-ui,sans-serif",boxShadow:"0 4px 12px rgba(0,0,0,.08)"}}
             labelStyle={{color:t.text2}} itemStyle={{color:t.accent}}/>
-          <Line type="monotone" dataKey="units" stroke={t.accent} strokeWidth={2} dot={false} activeDot={{r:4}} isAnimationActive={false}/>
+          <Line type="monotone" dataKey="units" stroke={t.accent} strokeWidth={2} dot={false} activeDot={{r:4}}/>
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -3666,7 +3666,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
             <ReferenceLine x={forecast[soi]?.date} stroke={t.red} strokeDasharray="4 2" strokeWidth={1.5}
               label={{value:"Stockout",fill:t.red,fontSize:9,position:"insideTopLeft"}}/>
           )}
-          <Line type="monotone" dataKey="stock" stroke={t.accent} strokeWidth={2} dot={false} isAnimationActive={false}/>
+          <Line type="monotone" dataKey="stock" stroke={t.accent} strokeWidth={2} dot={false}/>
         </LineChart>
       </ResponsiveContainer>
       {soi>0&&<div style={{marginTop:6,fontSize:9,color:t.red,fontFamily:"'Inter',system-ui,sans-serif"}}>
@@ -4260,7 +4260,7 @@ style={{
             </div>
           </div>
           {data&&<div style={{display:tab==="allskus"?"block":"none"}}><AllSKUs data={data} settings={settings} setSettings={setSettings} onSku={goSku} t={t} setPoUnits={setPoUnits} setExtraInbound={setExtraInbound} skuCfg={skuCfg} setSkuCfg={setSkuCfg}/></div>}
-          {tab==="dashboard"&&data&&<Dashboard data={data} settings={settings} setSettings={setSettings} onSku={goSku} t={t} purchRows={rawData?.purchRows||[]}/>}
+          {tab==="dashboard"&&data&&booted&&<Dashboard data={data} settings={settings} setSettings={setSettings} onSku={goSku} t={t} purchRows={rawData?.purchRows||[]}/>}
           {tab==="fc"&&data&&<FCView data={data} settings={settings} setSettings={setSettings} onSku={goSku} t={t}/>}
           {tab==="lis"&&data&&<LISView data={data} settings={settings} setSettings={setSettings} onSku={goSku} t={t}/>}
           {tab==="procurement"&&data&&<ProcurementForecast data={data} ltData={rawData?.ltData} anchorDate={rawData?.maxDate} openPoMap={openPoMap||{}} settings={settings} t={t}/>}
