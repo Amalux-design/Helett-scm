@@ -143,8 +143,8 @@ input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;bac
 .empty p{font-size:11px;line-height:1.7;color:${t.text3}}
 .d2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .d4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
-.bk{display:inline-flex;align-items:center;gap:4px;height:30px;padding:0 12px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;color:${t.text2};background:transparent;border:1px solid ${t.border2};transition:background .12s,color .12s,border-color .12s;margin-bottom:12px}
-.bk:hover{background:${t.surface2};color:${t.text};border-color:${t.text3}}
+.bk{display:inline-flex;align-items:center;gap:4px;height:30px;padding:0 12px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;color:${t.text};background:${t.surface2};border:1px solid ${t.text3};font-weight:600;transition:background .12s,color .12s,border-color .12s;margin-bottom:12px}
+.bk:hover{background:${t.accent};color:#fff;border-color:${t.accent}}
 .ac{padding:11px;background:${t.surface2};border-radius:7px;border:1px solid ${t.border}}
 .acl{font-size:11px;color:${t.text3};margin-bottom:4px;font-weight:500}
 .acv{font-size:20px;font-weight:700;font-family:'Inter',system-ui,sans-serif;letter-spacing:-.5px}
