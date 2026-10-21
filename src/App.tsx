@@ -1049,6 +1049,7 @@ const DataInput = forwardRef(function DataInput({onLoaded,loading,setLoading,t,p
         invRows:ir.length,ordRows:or.length,ledRows:lr.length,ltRows:ltr.length,
         source:"sheets",
       };
+      await new Promise(r=>setTimeout(r,50)); // let the loading screen paint before the heavy parse
       onLoaded({invRows:ir,ordRows:or,ledRows:lr,ltRows:ltr,purchRows:purchr,fbaInvRows:fir,debug});
     }catch(e){setErr("Sheets error: "+e.message);}finally{setLoading(false);}
   };
@@ -1287,7 +1288,7 @@ function InventoryHealthBar({skus, t}) {
             formatter={(v,_,{payload})=>[`${v} SKUs (${Math.round(v/total*100)}%)`,payload.label]}
             cursor={{fill:`${t.accent}08`}}
           />
-          <Bar dataKey="count" radius={[0,4,4,0]} maxBarSize={20}>
+          <Bar dataKey="count" radius={[0,4,4,0]} maxBarSize={20} isAnimationActive={false}>
             {data.map((d,i)=><Cell key={i} fill={d.color} fillOpacity={.82}/>)}
           </Bar>
         </BarChart>
@@ -1405,7 +1406,7 @@ function Dashboard({data,settings,setSettings,onSku,t,purchRows}){
                 formatter={v=>[`${v}d`,`Days of Inventory`]}
                 cursor={{fill:`${t.accent}08`}}
               />
-              <Bar dataKey="doi" radius={[0,4,4,0]} maxBarSize={18}>
+              <Bar dataKey="doi" radius={[0,4,4,0]} maxBarSize={18} isAnimationActive={false}>
                 {atRisk.map((e,i)=>(
                   <Cell key={i} fill={doiBarColor(e.priority)} fillOpacity={.8}/>
                 ))}
@@ -1433,7 +1434,7 @@ function Dashboard({data,settings,setSettings,onSku,t,purchRows}){
             formatter={v=>[`${v} u/day`,"Demand"]}
             cursor={{fill:`${t.accent}08`}}
           />
-          <Bar dataKey="demand" fill={t.accent} fillOpacity={.75} radius={[3,3,0,0]} maxBarSize={36}/>
+          <Bar dataKey="demand" fill={t.accent} fillOpacity={.75} radius={[3,3,0,0]} maxBarSize={36} isAnimationActive={false}/>
         </BarChart>
       </ResponsiveContainer>
     </div>}
@@ -3611,7 +3612,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
             formatter={v=>[fmt(v),"Units sold"]}
             contentStyle={{background:t.tooltipBg,border:`1px solid ${t.border}`,borderRadius:8,fontSize:12,fontFamily:"'Inter',system-ui,sans-serif",boxShadow:"0 4px 12px rgba(0,0,0,.08)"}}
             labelStyle={{color:t.text2}} itemStyle={{color:t.accent}}/>
-          <Line type="monotone" dataKey="units" stroke={t.accent} strokeWidth={2} dot={false} activeDot={{r:4}}/>
+          <Line type="monotone" dataKey="units" stroke={t.accent} strokeWidth={2} dot={false} activeDot={{r:4}} isAnimationActive={false}/>
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -3665,7 +3666,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
             <ReferenceLine x={forecast[soi]?.date} stroke={t.red} strokeDasharray="4 2" strokeWidth={1.5}
               label={{value:"Stockout",fill:t.red,fontSize:9,position:"insideTopLeft"}}/>
           )}
-          <Line type="monotone" dataKey="stock" stroke={t.accent} strokeWidth={2} dot={false}/>
+          <Line type="monotone" dataKey="stock" stroke={t.accent} strokeWidth={2} dot={false} isAnimationActive={false}/>
         </LineChart>
       </ResponsiveContainer>
       {soi>0&&<div style={{marginTop:6,fontSize:9,color:t.red,fontFamily:"'Inter',system-ui,sans-serif"}}>
@@ -4087,6 +4088,20 @@ function FBAPlannerApp({onLogout,authEmail}:{onLogout?:()=>void;authEmail?:strin
     if(tab==="input") setTab("dashboard");
   },[rawData,settings,skuCfg,poUnits,extraInbound,openPoMap]);
 
+  // Launch screen: stay on a loader until data is fetched, computed and the first view has painted.
+  const[booted,setBooted]=useState(false);
+  const sawLoading=useRef(false);
+  useEffect(()=>{ if(loading) sawLoading.current=true; },[loading]);
+  useEffect(()=>{
+    if(booted) return;
+    if(data){
+      let r2=0;
+      const r1=requestAnimationFrame(()=>{ r2=requestAnimationFrame(()=>setBooted(true)); });
+      return()=>{ cancelAnimationFrame(r1); cancelAnimationFrame(r2); };
+    }
+    if(sawLoading.current&&!loading) setBooted(true); // load failed / no data: reveal Data Input with its error
+  },[data,loading,booted]);
+
   const wc=warnings.filter(w=>w.type.includes("unmapped")).length;
   const fcCrit=data?Object.values(data).filter(d=>
     d.fcPlanning?.fcs?.some(f=>f.status==="stockout"||f.status==="critical")
@@ -4193,7 +4208,12 @@ style={{
       </div>
 
       {/* MAIN */}
-      <div className="main">
+      <div className="main" style={{position:"relative"}}>
+        {!booted&&<div role="status" aria-live="polite" style={{position:"absolute",inset:0,zIndex:60,background:t.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12}}>
+          <div className="sp"/>
+          <div style={{fontSize:14,fontWeight:600,color:t.text}}>Loading inventory data…</div>
+          <div style={{fontSize:12,color:t.text3}}>Fetching sheets and calculating</div>
+        </div>}
         <div className="topbar">
           <div style={{overflow:"hidden",minWidth:0}}>
             <div className="tb-title">{pageTitle}</div>
