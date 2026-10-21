@@ -147,4 +147,5 @@ export const SKU_MAP = {
   "B0HJTWN5N7":{"sellerSku":"BillQuick™ Mini","finalName":"BillQuick™ Mini"},
   "B0HKZKM9QD":{"sellerSku":"H01 Labelholder Black","finalName":"H01 Labelholder Black"},
   "B0HH3NH8G5":{"sellerSku":"Helett Travel-Fi Neo","finalName":"Helett Travel-Fi Neo"},
+  "B0HFZRWWG3":{"sellerSku":"Helett H80i Neo Reciept Printer FBA","finalName":"H80i BillQuick Neo Receipt Printer"},
 };
