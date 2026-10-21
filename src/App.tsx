@@ -2891,7 +2891,13 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
     return { row:r, rowKey, poNo, qty, included };
   });
   const totalOpenPoQty = skuPoRows.reduce((sum,pr)=>sum+(pr.included?pr.qty:0),0);
-  const totalPoDeduction = currentPoUnits + totalOpenPoQty;
+  // Both the manual "Purchased Units" entry and the sheet's open POs are
+  // forecast-only — they fold into Still-need-to-order / Shipment Plan /
+  // Reorder Date ONLY when "Include PO (forecast)" is checked. Off = ignore
+  // both entirely (matches computeAll's poForecastQty gating for DOI/Stockout,
+  // so this local block and the global engine always agree).
+  const poGateOn = settings.inclPO === true;
+  const totalPoDeduction = poGateOn ? (currentPoUnits + totalOpenPoQty) : 0;
   const localSuggestedPurchase = Math.max(0, localSuggestedPurchaseRaw - totalPoDeduction);
   const fullyCoveredByPos = localSuggestedPurchaseRaw > 0 && localSuggestedPurchase === 0 && totalPoDeduction > 0;
   const hasAir = effectiveAirLT != null && effectiveAirLT > 0;
@@ -3177,7 +3183,9 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
           ) : (
             <>
               <div style={{fontSize:9,color:t.text3,marginBottom:6,fontFamily:"'Inter',system-ui,sans-serif"}}>
-                Uncheck a PO to exclude it from purchase/replenishment/DOI/stockout calculations everywhere in the app.
+                {poGateOn
+                  ? "Uncheck a PO to exclude it from purchase/replenishment/DOI/stockout calculations everywhere in the app."
+                  : <>Enable <strong style={{color:t.text2}}>Include PO (forecast)</strong> above to fold these into calculations — per-PO checkboxes are inactive until then.</>}
               </div>
               <div className="tw" style={{marginBottom:8}}>
                 <table style={{width:"100%",borderCollapse:"collapse"}}>
@@ -3203,11 +3211,12 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
                       const eta  = s(r,get,"Estimated Date of Delivery","estimated_date_of_delivery","Estimated Delivery Date","Expected Date of Delivery","Expected Delivery Date","Date of Delivery","date_of_delivery","Delivery Date","delivery_date","ETA");
                       const sc   = statusColor(st);
                       return (
-                        <tr key={i} style={{borderBottom:`1px solid ${t.border}`,opacity:pr.included?1:.45}}>
+                        <tr key={i} style={{borderBottom:`1px solid ${t.border}`,opacity:(poGateOn&&pr.included)?1:.45}}>
                           <td style={{padding:"7px 10px"}}>
-                            <input type="checkbox" checked={pr.included} onChange={()=>togglePoSelection(sku.asin,pr.rowKey)}
-                              title={pr.included?"Included in calculations":"Excluded from calculations"}
-                              style={{cursor:"pointer"}}/>
+                            <input type="checkbox" checked={pr.included} disabled={!poGateOn}
+                              onChange={()=>togglePoSelection(sku.asin,pr.rowKey)}
+                              title={!poGateOn?"Enable 'Include PO (forecast)' to use this":(pr.included?"Included in calculations":"Excluded from calculations")}
+                              style={{cursor:poGateOn?"pointer":"not-allowed"}}/>
                           </td>
                           <td style={{padding:"7px 10px",fontSize:11,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif",textAlign:"left"}}>{poDate||"—"}</td>
                           <td style={{padding:"7px 10px",fontSize:11,fontFamily:"'Inter',system-ui,sans-serif",color:t.text,fontWeight:600,textAlign:"left"}}>{poNo}</td>
@@ -3228,14 +3237,14 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
                 </table>
               </div>
               <div style={{
-                padding:"7px 12px",background:t.accentBg,border:`1px solid ${t.accentBdr}`,
+                padding:"7px 12px",background:poGateOn?t.accentBg:t.surface2,border:`1px solid ${poGateOn?t.accentBdr:t.border}`,
                 borderRadius:6,display:"flex",alignItems:"center",justifyContent:"space-between",
-                fontSize:11,fontFamily:"'Inter',system-ui,sans-serif",
+                fontSize:11,fontFamily:"'Inter',system-ui,sans-serif",opacity:poGateOn?1:.6,
               }}>
                 <span style={{color:t.text3,fontSize:9,textTransform:"uppercase",letterSpacing:".5px"}}>
-                  Total Open PO Qty ({poRows.filter(p=>p.included).length}/{poRows.length} PO{poRows.length!==1?"s":""} included)
+                  Total Open PO Qty ({poRows.filter(p=>p.included).length}/{poRows.length} PO{poRows.length!==1?"s":""} included){!poGateOn&&" — not applied"}
                 </span>
-                <span style={{fontWeight:800,fontSize:15,color:t.accent}}>{fmt(totalOpenQty)} units</span>
+                <span style={{fontWeight:800,fontSize:15,color:poGateOn?t.accent:t.text3}}>{fmt(totalOpenQty)} units</span>
               </div>
             </>
           )}
@@ -3346,7 +3355,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
             ↺ Reset
           </button>
         )}
-        {currentPoUnits>0&&<span style={{fontSize:10,color:t.text3}}>deducting <span style={{color:t.green,fontWeight:700}}>{fmt(currentPoUnits)}</span> units on order</span>}
+        {currentPoUnits>0&&!poGateOn&&<span style={{fontSize:10,color:t.text3}}>Include PO (forecast) is off — no effect</span>}
         <span style={{marginLeft:"auto",fontSize:13,fontWeight:700,fontFamily:"'Inter',system-ui,sans-serif",color:localSuggestedPurchase>0?t.accent:t.green}}>
           Still need: {localSuggestedPurchase>0?fmt(localSuggestedPurchase)+" units":"✓ Covered"}
         </span>
@@ -3414,7 +3423,16 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
       </div>
 
       {/* ── PO Deduction Tip ── */}
-      {totalOpenPoQty > 0 && (
+      {totalOpenPoQty > 0 && !poGateOn && (
+        <div style={{
+          marginTop:8,padding:"9px 12px",borderRadius:7,fontSize:11,
+          background:t.surface2,border:`1px solid ${t.border}`,color:t.text3,
+          fontFamily:"'Inter',system-ui,sans-serif",
+        }}>
+          {fmt(totalOpenPoQty)} units across {skuPoRows.filter(p=>p.included).length} open PO{skuPoRows.filter(p=>p.included).length!==1?"s":""} in the sheet — not applied. Enable <strong style={{color:t.text2}}>Include PO (forecast)</strong> above to fold them in.
+        </div>
+      )}
+      {totalOpenPoQty > 0 && poGateOn && (
         <div style={{
           marginTop:8,padding:"9px 12px",borderRadius:7,fontSize:11,
           background: fullyCoveredByPos ? t.green+"18" : t.accent+"14",
@@ -3850,7 +3868,109 @@ function SKUManager({skuCfg,setSkuCfg,data,settings,setSettings,t}){
 /* ═══════════════════════════════════════════════════════════════
    MAIN APP
 ═══════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════
+   AUTH GATE (front-end only — credentials read from "Users" sheet tab)
+   Sheet columns: email | password  (password = plaintext OR SHA-256 hex)
+═══════════════════════════════════════════════════════════════ */
+const AUTH_SHEET_ID="1Va-jdWfO2dmO6R-QCnkg9S2YqIWacx9pKfkW3Th-RGw";
+const AUTH_KEY="fba_auth";
+async function sha256Hex(s){
+  const buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+async function fetchUsers(){
+  const r=await fetch(`https://docs.google.com/spreadsheets/d/${AUTH_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Users`);
+  if(!r.ok) throw new Error(`Users tab not accessible (HTTP ${r.status})`);
+  const txt=await r.text();
+  if(txt.trim().startsWith("<!")) throw new Error('"Users" tab missing or sheet not public');
+  return parseCSV(txt);
+}
+// returns the matching row's stored password if creds valid, else null
+async function checkCreds(rows,email,pass){
+  const e=email.trim().toLowerCase();
+  const h=await sha256Hex(pass);
+  for(const row of rows){
+    const keys=Object.keys(row);
+    const ek=keys.find(k=>k.trim().toLowerCase()==="email");
+    const pk=keys.find(k=>k.trim().toLowerCase()==="password");
+    if(!ek||!pk) continue;
+    if(String(row[ek]).trim().toLowerCase()!==e) continue;
+    const stored=String(row[pk]).trim();
+    if(stored===pass||stored.toLowerCase()===h) return stored;
+  }
+  return null;
+}
 export default function FBAPlanner(){
+  const[state,setState]=useState("checking"); // checking | out | in
+  const[email,setEmail]=useState("");
+  const[pass,setPass]=useState("");
+  const[err,setErr]=useState(null);
+  const[busy,setBusy]=useState(false);
+
+  // On load: if device has saved login, re-validate against sheet (revoked row → logged out).
+  // Offline / fetch failure → trust saved login.
+  useEffect(()=>{
+    let saved=null;
+    try{ saved=JSON.parse(localStorage.getItem(AUTH_KEY)||"null"); }catch(_){}
+    if(!saved||!saved.email||!saved.stored){ setState("out"); return; }
+    (async()=>{
+      try{
+        const rows=await fetchUsers();
+        const ok=rows.some(row=>{
+          const keys=Object.keys(row);
+          const ek=keys.find(k=>k.trim().toLowerCase()==="email");
+          const pk=keys.find(k=>k.trim().toLowerCase()==="password");
+          return ek&&pk&&String(row[ek]).trim().toLowerCase()===saved.email&&String(row[pk]).trim()===saved.stored;
+        });
+        if(ok) setState("in");
+        else{ try{localStorage.removeItem(AUTH_KEY);}catch(_){} setState("out"); }
+      }catch(_){ setState("in"); }
+    })();
+  },[]);
+
+  async function doLogin(ev){
+    ev.preventDefault();
+    if(!email.trim()||!pass){ setErr("Enter email and password"); return; }
+    setBusy(true); setErr(null);
+    try{
+      const rows=await fetchUsers();
+      const stored=await checkCreds(rows,email,pass);
+      if(stored===null){ setErr("Wrong email or password"); }
+      else{
+        try{localStorage.setItem(AUTH_KEY,JSON.stringify({email:email.trim().toLowerCase(),stored}));}catch(_){}
+        setPass(""); setState("in");
+      }
+    }catch(e){ setErr("Login error: "+e.message); }
+    finally{ setBusy(false); }
+  }
+  function logout(){
+    try{localStorage.removeItem(AUTH_KEY);}catch(_){}
+    setEmail(""); setPass(""); setState("out");
+  }
+
+  if(state==="checking") return <div style={{minHeight:"100vh",background:"#0b0f17"}}/>;
+  if(state==="out") return (
+    <div style={{minHeight:"100vh",background:"#0b0f17",display:"flex",alignItems:"center",justifyContent:"center",padding:16,fontFamily:"system-ui,sans-serif"}}>
+      <form onSubmit={doLogin} style={{width:"100%",maxWidth:340,background:"#151b27",border:"1px solid #263043",borderRadius:12,padding:24,display:"flex",flexDirection:"column",gap:12}}>
+        <div style={{color:"#e6edf7",fontSize:20,fontWeight:700}}>Sign in</div>
+        <input type="email" autoComplete="username" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)}
+          style={{padding:"10px 12px",borderRadius:8,border:"1px solid #263043",background:"#0b0f17",color:"#e6edf7",fontSize:16}}/>
+        <input type="password" autoComplete="current-password" placeholder="Password" value={pass} onChange={e=>setPass(e.target.value)}
+          style={{padding:"10px 12px",borderRadius:8,border:"1px solid #263043",background:"#0b0f17",color:"#e6edf7",fontSize:16}}/>
+        {err&&<div style={{color:"#ff6b6b",fontSize:13}}>{err}</div>}
+        <button type="submit" disabled={busy} style={{padding:"10px 12px",borderRadius:8,border:"none",background:"#3b82f6",color:"#fff",fontSize:16,fontWeight:600,cursor:busy?"wait":"pointer"}}>
+          {busy?"Checking…":"Sign in"}
+        </button>
+      </form>
+    </div>
+  );
+  return (<>
+    <FBAPlannerApp/>
+    <button onClick={logout} title="Log out" style={{position:"fixed",bottom:8,right:8,zIndex:9999,padding:"4px 10px",fontSize:11,borderRadius:6,border:"1px solid #263043",background:"#151b27",color:"#9fb0c8",cursor:"pointer",opacity:.7}}>Log out</button>
+  </>);
+}
+
+function FBAPlannerApp(){
   const dataInputRef=useRef(null);
   const[dark,setDark]=useState(true);
   const[parseDebug,setParseDebug]=useState(null);
