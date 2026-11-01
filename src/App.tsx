@@ -4376,7 +4376,7 @@ function FBAPlannerApp({onLogout,authEmail}:{onLogout?:()=>void;authEmail?:strin
       <nav className="tabbar" aria-label="Main">
         {TAB_BAR.map(id=>{const tb=TABS.find(x=>x.id===id);return(
           <button key={id} type="button" className={`tab${isOn(id)?" on":""}${isDisabled(id)?" disabled":""}`} aria-current={isOn(id)?"page":undefined} onClick={()=>goTab(id)}>
-            <span className="tab-ic">{NAV_ICONS[id]}</span><span>{tb.l}</span>
+            <span className="tab-ic">{NAV_ICONS[id]}</span><span>{id==="procurement"?"Procure":tb.l}</span>
           </button>);})}
       </nav>
       <div className={`msheet-wrap${menuOpen?" open":""}`} aria-hidden={!menuOpen}>
