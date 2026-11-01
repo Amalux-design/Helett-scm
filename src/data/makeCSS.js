@@ -173,7 +173,21 @@ tr.cr{cursor:pointer}
 .cfm-t{font-size:18px;font-weight:600;margin-bottom:8px}
 .cfm-m{font-size:15px;line-height:1.5;color:${t.text2};margin-bottom:20px}
 .cfm-b{display:flex;gap:8px;justify-content:flex-end}
-@media(max-width:600px){.cfm-wrap{align-items:flex-end;padding:0}.cfm{max-width:none;border-radius:12px 12px 0 0;border-bottom:0}.cfm-b .btn{flex:1}}
+@media(max-width:600px){
+  th{font-size:11.5px!important;padding:0 8px!important;height:38px!important}
+  td{font-size:12px!important;padding:0 8px!important;height:46px!important}
+  td:not(:first-child){font-size:12px!important}
+  td .badge,.badge{font-size:11px;height:22px;padding:0 6px}
+  .tn{font-size:13px;max-width:150px}
+  .ta{font-size:10.5px}
+  .card{padding:14px}
+  .ch,.wh{font-size:15px}
+  .kc{padding:12px 14px}
+  .kl{font-size:12.5px}
+  .ks{font-size:11.5px}
+  .sk,.sv{font-size:13px}
+  .srow .btn,.srow .sbox,.srow .sel{font-size:13px}
+  .tw input,.tw .sel-sm{font-size:12px!important}.cfm-wrap{align-items:flex-end;padding:0}.cfm{max-width:none;border-radius:12px 12px 0 0;border-bottom:0}.cfm-b .btn{flex:1}}
 .sel-opt{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:40px;padding:0 10px;border-radius:6px;font-size:15px;color:${t.text};cursor:pointer}
 .sel-opt.hl{background:${t.surface2}}
 .sel-opt.on{font-weight:700}
