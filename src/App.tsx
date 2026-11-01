@@ -4394,6 +4394,11 @@ function FBAPlannerApp({onLogout,authEmail}:{onLogout?:()=>void;authEmail?:strin
             <button type="button" className="mbar-btn" aria-label="Close menu" onClick={()=>setMenuOpen(false)}>✕</button>
           </div>
           <div>{navItems()}</div>
+          <div className="msheet-actions" aria-label="Actions">
+            <button type="button" className="btn" disabled={loading} onClick={()=>{dataInputRef.current?.refreshSheets();setMenuOpen(false);}}>{loading?"Refreshing…":"Refresh data"}</button>
+            <button type="button" className="btn bdl" onClick={()=>{if(window.confirm("Reset Purchased Units, Priority Demand and Add Inbound for every SKU back to default? This can't be undone.")){resetManualValues();setMenuOpen(false);}}}>Reset values</button>
+            <button type="button" className="btn" onClick={toggleTheme}>{dark?"Switch to light theme":"Switch to dark theme"}</button>
+          </div>
           {onLogout&&<button type="button" className="btn btn-signout" style={{width:"100%",marginTop:12}} onClick={signOut}>Sign out</button>}
         </div>
       </div>

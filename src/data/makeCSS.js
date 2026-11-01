@@ -249,6 +249,8 @@ tr.cr{cursor:pointer}
   .msheet-wrap.open .msheet-bg{opacity:1}
   .msheet{position:absolute;left:0;right:0;bottom:0;max-height:85vh;overflow-y:auto;background:${t.surface};border-radius:12px 12px 0 0;border:1px solid ${t.border};padding:16px;transform:translateY(100%);transition:transform .18s ease}
   .msheet-wrap.open .msheet{transform:translateY(0)}
+  .msheet-actions{display:flex;flex-direction:column;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid ${t.border}}
+  .tb-r{display:none}
   .msheet-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
   .slg{padding:0 16px}
   .igrid{grid-template-columns:1fr}
