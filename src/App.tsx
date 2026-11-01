@@ -1278,7 +1278,7 @@ function InventoryHealthBar({skus, t}) {
 
   return(
     <div>
-      <ResponsiveContainer width="100%" height={180}>
+      <div className="chart-reveal"><ResponsiveContainer width="100%" height={180}>
         <BarChart data={data} layout="vertical" margin={{top:4,right:50,left:0,bottom:4}}>
           <CartesianGrid strokeDasharray="2 4" stroke={t.border} horizontal={false}/>
           <XAxis type="number" tick={{fill:t.text3,fontSize:11}} axisLine={false} tickLine={false}/>
@@ -1288,11 +1288,11 @@ function InventoryHealthBar({skus, t}) {
             formatter={(v,_,{payload})=>[`${v} SKUs (${Math.round(v/total*100)}%)`,payload.label]}
             cursor={{fill:`${t.accent}08`}}
           />
-          <Bar dataKey="count" radius={[0,4,4,0]} maxBarSize={20}>
+          <Bar dataKey="count" radius={[0,4,4,0]} maxBarSize={20} isAnimationActive={false}>
             {data.map((d,i)=><Cell key={i} fill={d.color} fillOpacity={.82}/>)}
           </Bar>
         </BarChart>
-      </ResponsiveContainer>
+      </ResponsiveContainer></div>
       <div style={{display:"flex",gap:10,flexWrap:"wrap",marginTop:4}}>
         {data.map(d=>(
           <span key={d.label} style={{display:"flex",alignItems:"center",gap:4,fontSize:9,fontFamily:"'Instrument Sans',system-ui,sans-serif",color:t.text3}}>
@@ -1394,7 +1394,7 @@ function Dashboard({data,settings,setSettings,onSku,t,purchRows}){
       <div className="card">
         <div className="ch">Most at Risk — Lowest Days of Inventory</div>
         {atRisk.length>0?(
-          <ResponsiveContainer width="100%" height={220}>
+          <div className="chart-reveal"><ResponsiveContainer width="100%" height={220}>
             <BarChart layout="vertical" data={atRisk} margin={{top:0,right:40,left:0,bottom:0}}
               onClick={e=>e?.activePayload&&onSku(e.activePayload[0]?.payload?.asin)}
               style={{cursor:"pointer"}}>
@@ -1406,13 +1406,13 @@ function Dashboard({data,settings,setSettings,onSku,t,purchRows}){
                 formatter={v=>[`${v}d`,`Days of Inventory`]}
                 cursor={{fill:`${t.accent}08`}}
               />
-              <Bar dataKey="doi" radius={[0,4,4,0]} maxBarSize={18}>
+              <Bar dataKey="doi" radius={[0,4,4,0]} maxBarSize={18} isAnimationActive={false}>
                 {atRisk.map((e,i)=>(
                   <Cell key={i} fill={doiBarColor(e.priority)} fillOpacity={.8}/>
                 ))}
               </Bar>
             </BarChart>
-          </ResponsiveContainer>
+          </ResponsiveContainer></div>
         ):(
           <div style={{padding:"30px 0",textAlign:"center",fontSize:11,color:t.text3}}>No active SKUs with demand data</div>
         )}
@@ -1422,7 +1422,7 @@ function Dashboard({data,settings,setSettings,onSku,t,purchRows}){
     {/* Chart row 2: Top demand */}
     {topD.length>0&&<div className="card" style={{marginBottom:10}}>
       <div className="ch">Top 8 by Weighted Daily Demand</div>
-      <ResponsiveContainer width="100%" height={190}>
+      <div className="chart-reveal"><ResponsiveContainer width="100%" height={190}>
         <BarChart data={topD} margin={{top:4,right:12,left:0,bottom:50}}
           onClick={e=>e?.activePayload&&onSku(e.activePayload[0]?.payload?.asin)}
           style={{cursor:"pointer"}}>
@@ -1434,9 +1434,9 @@ function Dashboard({data,settings,setSettings,onSku,t,purchRows}){
             formatter={v=>[`${v} u/day`,"Demand"]}
             cursor={{fill:`${t.accent}08`}}
           />
-          <Bar dataKey="demand" fill={t.accent} fillOpacity={.75} radius={[3,3,0,0]} maxBarSize={36}/>
+          <Bar dataKey="demand" fill={t.accent} fillOpacity={.75} radius={[3,3,0,0]} maxBarSize={36} isAnimationActive={false}/>
         </BarChart>
-      </ResponsiveContainer>
+      </ResponsiveContainer></div>
     </div>}
 
     {/* Priority Alerts table */}
@@ -1561,7 +1561,7 @@ function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,s
           <option value="all">All SKUs</option><option value="critical">Critical</option>
           <option value="high">High Priority</option><option value="ok">OK</option><option value="over">Overstock</option>
         </Select>
-        <button className="btn bx" style={{fontSize:13}} onClick={exportCSV} title="Exports the rows currently shown, with columns reflecting the Include FBA/FC/Transfer/Inbound toggles above">
+        <button className="btn bx" onClick={exportCSV} title="Exports the rows currently shown, with columns reflecting the Include FBA/FC/Transfer/Inbound toggles above">
           ⬇ Export CSV
         </button>
         {picked.size>0&&<span style={{fontSize:9,color:t.accent,fontFamily:"'Instrument Sans',system-ui,sans-serif",fontWeight:700}}>{picked.size} selected</span>}
@@ -3529,7 +3529,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
               <button key={key} onClick={()=>setClusterSortBy(key)} style={{
                 padding:"4px 10px",borderRadius:6,cursor:"pointer",fontWeight:600,
                 background:clusterSortBy===key?t.accent:t.surface2,
-                color:clusterSortBy===key?"#fff":t.text3,
+                color:clusterSortBy===key?t.onInk:t.text3,
                 border:`1px solid ${clusterSortBy===key?t.accent:t.border}`,
                 fontFamily:"'Instrument Sans',system-ui,sans-serif",
               }}>{label}</button>
@@ -3912,6 +3912,7 @@ function LoginView({email,setEmail,pass,setPass,err,busy,onSubmit}:any){
   const t=dark?DARK:LIGHT;
   const css=`
 @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+html,body{background:${t.bg}!important}
 .au{text-align:left;min-height:100vh;display:grid;grid-template-columns:minmax(320px,5fr) minmax(360px,6fr);background:${t.bg};color:${t.text};font-family:'Instrument Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
 .au *{box-sizing:border-box}
 .au-brand{background:${dark?"#0a0c0f":"#12161c"};color:#eceff3;padding:40px 48px;display:flex;flex-direction:column;justify-content:space-between;border-right:1px solid ${t.border}}

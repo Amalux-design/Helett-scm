@@ -9,7 +9,7 @@ const MONO="'IBM Plex Mono',ui-monospace,Consolas,monospace";
 return `
 @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{height:100%;font-size:15px;overflow:hidden}
+html{height:100%;font-size:15px;overflow:hidden;background:${t.bg}}
 body{height:100%;overflow:hidden;background:${t.bg};color:${t.text};font-family:${SANS};line-height:1.45;-webkit-font-smoothing:antialiased}
 #fba-root{display:flex;height:100vh;width:100%;overflow:hidden;position:fixed;top:0;left:0;right:0;bottom:0;text-align:left}
 .content,.topbar,.tb-title,.tb-sub,.ch,.card,.kc,h1,h2,h3,p,div{text-align:left}
@@ -18,7 +18,9 @@ button,input,select,textarea{font-family:${SANS}}
 ::view-transition-old(root),::view-transition-new(root){animation:none;mix-blend-mode:normal}
 ::view-transition-old(root){z-index:1}
 ::view-transition-new(root){z-index:2}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+.chart-reveal{animation:chartIn .7s cubic-bezier(.22,.8,.3,1) both;will-change:opacity,clip-path}
+@keyframes chartIn{from{opacity:0;clip-path:inset(0 100% 0 0)}to{opacity:1;clip-path:inset(0 0 0 0)}}
+@media(prefers-reduced-motion:reduce){.chart-reveal{animation:none}*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}}
 
 /* ── SIDEBAR (laptop: fixed 240px) ── */
 .sb{position:fixed;top:0;left:0;bottom:0;z-index:80;width:260px;background:${t.sidebar};border-right:1px solid ${t.sbBorder};display:flex;flex-direction:column;overflow:hidden;transform:translateX(-100%);visibility:hidden;transition:transform .2s ease,visibility 0s .2s;box-shadow:none}
@@ -77,8 +79,12 @@ button,input,select,textarea{font-family:${SANS}}
 .tb-btn.danger:hover{background:${t.redBg};border-color:${t.red}}
 .bk{height:44px;margin-bottom:12px;font-weight:500}
 .tb-btn-accent{display:none}
-.tb-r .tb-btn{height:34px;padding:0 12px;font-size:13px;gap:6px}
-.tb-r .tb-icon{width:34px;padding:0}
+.tb-r .tb-btn{height:36px;padding:0 12px;font-size:13px;gap:6px}
+.tb-r .tb-icon{width:36px;padding:0}
+.srow .btn,.srow .sbox,.srow .sel{height:36px;font-size:13px}
+.srow .btn{padding:0 12px;gap:6px}
+.srow .sbox input{font-size:13px}
+.srow .sel{min-width:130px}
 .tb-meta{font-size:13px;color:${t.text3};white-space:nowrap;margin-right:6px}
 
 /* ── BADGES (24px, 8px radius, no dots, outline only) ── */
