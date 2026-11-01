@@ -127,6 +127,7 @@ button,input,select,textarea{font-family:${SANS}}
 .sbar-info{margin-top:14px;padding-top:12px;border-top:1px solid ${t.border};font-size:13px;color:${t.text3};line-height:1.6}
 .sbar-info strong{color:${t.text2}}
 .sbar-info label{gap:8px;min-height:32px}
+.sbar-toggle{display:none}
 input[type=range]{width:100%;max-width:100%;appearance:none;height:4px;background:${t.border2};border-radius:2px;outline-offset:6px;cursor:pointer;display:block}
 input[type=range]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;border-radius:50%;background:${t.accent};cursor:pointer;border:2px solid ${t.surface};box-shadow:0 0 0 1px ${t.accent}}
 input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:${t.accent};cursor:pointer;border:2px solid ${t.surface}}
@@ -254,5 +255,11 @@ tr.cr{cursor:pointer}
   .d4{grid-template-columns:repeat(2,1fr)}
   .kg{grid-template-columns:repeat(2,1fr)}
 }
-@media(max-width:600px){.sg{grid-template-columns:1fr}.slg{padding:12px 0;border-right:none;border-bottom:1px solid ${t.border}}.slg:last-child{border-bottom:none}.kg{gap:8px}.kv{font-size:26px}.tb-title{font-size:20px}.d2{grid-template-columns:1fr}.acs{grid-template-columns:1fr}.adj-grid{grid-template-columns:1fr}.sbox input{width:100%}.sbox{flex:1 1 100%}}
+@media(max-width:600px){
+  .sbar{padding:6px 12px}
+  .sbar.m-open{padding:6px 16px 16px;position:static}
+  .sbar-toggle{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;height:36px;border:0;background:transparent;color:${t.text2};font-size:13px;font-weight:500;cursor:pointer;border-radius:8px}
+  .sbar-toggle:active{background:${t.surface2}}
+  .sbar:not(.m-open) .sg,.sbar:not(.m-open) .sbar-info{display:none!important}
+  .sbar.m-open .sg{margin-top:4px}.sg{grid-template-columns:1fr}.slg{padding:12px 0;border-right:none;border-bottom:1px solid ${t.border}}.slg:last-child{border-bottom:none}.kg{gap:8px}.kv{font-size:26px}.tb-title{font-size:20px}.d2{grid-template-columns:1fr}.acs{grid-template-columns:1fr}.adj-grid{grid-template-columns:1fr}.sbox input{width:100%}.sbox{flex:1 1 100%}}
 `;}

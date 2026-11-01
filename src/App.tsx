@@ -1141,6 +1141,7 @@ function SBar({settings,setSettings,t,isTop}){
   useEffect(()=>setLocal(settings),[settings]);
   const onMove=(k,v)=>setLocal(p=>({...p,[k]:v}));
   const onRelease=(k,v)=>setSettings(p=>({...p,[k]:v}));
+  const[mOpen,setMOpen]=useState(false); // phones only: the controls are collapsed until opened
   const[showInfo,setShowInfo]=useState(false);
   const[popoverPos,setPopoverPos]=useState({top:0,left:0});
   const infoRef=useRef(null);
@@ -1177,7 +1178,13 @@ function SBar({settings,setSettings,t,isTop}){
     ["fbaCoverDays","FBA Cover Days",0,100,"d","Target days of stock to keep in FBA"],
   ];
   return(
-    <div className={`sbar${isTop?" sbar-top":""}`}>
+    <div className={`sbar${isTop?" sbar-top":""}${mOpen?" m-open":""}`}>
+      <button type="button" className="sbar-toggle" onClick={()=>setMOpen(v=>!v)} aria-expanded={mOpen} aria-label={mOpen?"Hide controls":"Show controls"}>
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          {mOpen?<polyline points="4,11.5 9,6.5 14,11.5"/>:<polyline points="4,6.5 9,11.5 14,6.5"/>}
+        </svg>
+        <span>{mOpen?"Hide controls":"Controls"}</span>
+      </button>
       <div className="sg">
         {sliders.map(([k,l,min,max,unit,tip])=>(
           <div key={k} className="slg">
