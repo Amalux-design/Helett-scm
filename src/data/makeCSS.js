@@ -120,10 +120,10 @@ button,input,select,textarea{font-family:${SANS}}
 input[type=range]{width:100%;max-width:100%;appearance:none;height:4px;background:${t.border2};border-radius:2px;outline-offset:6px;cursor:pointer;display:block}
 input[type=range]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;border-radius:50%;background:${t.accent};cursor:pointer;border:2px solid ${t.surface};box-shadow:0 0 0 1px ${t.accent}}
 input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:${t.accent};cursor:pointer;border:2px solid ${t.surface}}
-input[type=checkbox]{appearance:none;-webkit-appearance:none;flex-shrink:0;position:relative;width:36px;height:22px;border-radius:999px;background:#0b0d10;border:1px solid ${t.border2};cursor:pointer;vertical-align:middle;transition:background .18s,border-color .18s;outline-offset:2px}
-input[type=checkbox]::before{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .18s,background .18s}
-input[type=checkbox]:checked{background:#fff;border-color:${t.border2}}
-input[type=checkbox]:checked::before{transform:translateX(14px);background:#12161c}
+input[type=checkbox]{appearance:none;-webkit-appearance:none;flex-shrink:0;position:relative;width:36px;height:22px;border-radius:999px;background:${t.bg};border:1px solid ${t.border2};cursor:pointer;vertical-align:middle;transition:background .18s,border-color .18s;outline-offset:2px}
+input[type=checkbox]::before{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:${t.text};transition:transform .18s,background .18s}
+input[type=checkbox]:checked{background:${t.text};border-color:${t.text}}
+input[type=checkbox]:checked::before{transform:translateX(14px);background:${t.bg}}
 input[type=checkbox]:disabled{opacity:.45;cursor:not-allowed}
 td input[type=checkbox],th input[type=checkbox]{appearance:auto;-webkit-appearance:checkbox;width:16px;height:16px;border-radius:0;background:none;accent-color:${t.accent}}
 td input[type=checkbox]::before,th input[type=checkbox]::before{display:none}
