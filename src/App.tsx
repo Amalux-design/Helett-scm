@@ -3915,15 +3915,15 @@ function LoginView({email,setEmail,pass,setPass,err,busy,onSubmit}:any){
 html,body{background:${t.bg}!important}
 .au{text-align:left;min-height:100vh;display:grid;grid-template-columns:minmax(320px,5fr) minmax(360px,6fr);background:${t.bg};color:${t.text};font-family:'Instrument Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
 .au *{box-sizing:border-box}
-.au-brand{background:${dark?"#0a0c0f":"#12161c"};color:#eceff3;padding:40px 48px;display:flex;flex-direction:column;justify-content:space-between;border-right:1px solid ${t.border}}
-.au-logo{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:600}
+.au-brand{position:relative;background:${dark?"#0a0c0f":"#12161c"};color:#eceff3;padding:40px 56px;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;border-right:1px solid ${t.border}}
+.au-logo{position:absolute;top:40px;left:56px;color:#eceff3}
 .au-mark{width:36px;height:36px;border-radius:8px;background:#eceff3;color:#12161c;display:flex;align-items:center;justify-content:center}
-.au-claim{font-size:38px;line-height:1.1;font-weight:600;letter-spacing:-.8px;max-width:420px}
+.au-claim{font-size:38px;line-height:1.1;font-weight:600;letter-spacing:-.8px;max-width:360px;text-align:left}
 .au-sub{margin-top:14px;font-size:16px;line-height:1.5;color:#9099a6;max-width:400px}
 .au-stats{display:flex;gap:28px;font-family:'IBM Plex Mono',monospace}
 .au-stat b{display:block;font-size:22px;font-weight:500;color:#eceff3}
 .au-stat span{font-family:'Instrument Sans',sans-serif;font-size:13px;color:#9099a6}
-.au-main{display:flex;align-items:center;justify-content:center;padding:32px 24px;position:relative}
+.au-main{display:flex;align-items:center;justify-content:flex-start;padding:32px 56px;position:relative}
 .au-theme{position:absolute;top:20px;right:20px;width:40px;height:40px;border-radius:8px;border:1px solid ${dark?"#6b7480":"#8b94a0"};background:${t.surface};color:${t.text};cursor:pointer;display:flex;align-items:center;justify-content:center}
 .au-form{width:100%;max-width:380px;display:flex;flex-direction:column;gap:16px;text-align:left}
 .au-form h1{color:${t.text};font-size:28px;font-weight:600;letter-spacing:-.4px;line-height:1.2}
@@ -3942,13 +3942,13 @@ html,body{background:${t.bg}!important}
 .au-spin{width:16px;height:16px;border-radius:50%;border:2px solid currentColor;border-top-color:transparent;animation:auspin .8s linear infinite}
 @keyframes auspin{to{transform:rotate(360deg)}}
 .au button:focus-visible{outline:2px solid ${t.focus};outline-offset:2px}
-@media(max-width:860px){.au{grid-template-columns:1fr}.au-brand{padding:20px 24px;flex-direction:row;align-items:center;border-right:0;border-bottom:1px solid ${t.border}}.au-claim,.au-sub,.au-stats{display:none}.au-main{align-items:flex-start;padding-top:40px}}
+@media(max-width:860px){.au{grid-template-columns:1fr}.au-brand{padding:20px 24px;flex-direction:row;align-items:center;justify-content:flex-start;border-right:0;border-bottom:1px solid ${t.border}}.au-logo{position:static}.au-claim,.au-sub,.au-stats{display:none}.au-main{align-items:flex-start;justify-content:center;padding:40px 24px}}
 @media(prefers-reduced-motion:reduce){.au-spin{animation-duration:2s}}`;
   return(
     <div className="au">
       <style>{css}</style>
       <aside className="au-brand">
-        <div className="au-logo"><div className="au-mark"><LogoMark size={22}/></div>Inventory Forecast</div>
+        <div className="au-logo"><Logo size={40}/></div>
         <div>
           <div className="au-claim">Know what to ship before it runs out.</div>
         </div>
@@ -4034,13 +4034,22 @@ export default function FBAPlanner(){
   return <FBAPlannerApp onLogout={logout} authEmail={authEmail}/>;
 }
 
-/* Product mark: two solid bars (stock on hand) and one outlined bar (forecast). */
-function LogoMark({size=18}:{size?:number}){
-  return(<svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <rect x="3" y="14" width="4.5" height="7" rx="1" fill="currentColor"/>
-    <rect x="9.75" y="9" width="4.5" height="12" rx="1" fill="currentColor"/>
-    <rect x="16.5" y="3.8" width="4.5" height="17.2" rx="1" stroke="currentColor" strokeWidth="1.7"/>
-  </svg>);
+/* Logo lockup: rising-bars mark + two-line wordmark as one unit. Uses currentColor. */
+function Logo({size=28}:{size?:number}){
+  const fs=Math.round(size*0.5);
+  return(
+    <span style={{display:"inline-flex",alignItems:"center",gap:Math.round(size*0.34),color:"inherit",lineHeight:1}} aria-label="Inventory Forecast" role="img">
+      <svg width={size} height={size} viewBox="0 0 28 28" fill="none" aria-hidden="true" style={{flexShrink:0}}>
+        <rect x="2" y="17" width="5" height="9" rx="1.6" fill="currentColor"/>
+        <rect x="9" y="11" width="5" height="15" rx="1.6" fill="currentColor"/>
+        <rect x="16" y="5" width="5" height="21" rx="1.6" fill="currentColor"/>
+        <rect x="23" y="1.5" width="4" height="24.5" rx="1.6" fill="currentColor" opacity=".38"/>
+      </svg>
+      <span aria-hidden="true" style={{display:"flex",flexDirection:"column",fontWeight:700,fontSize:fs,letterSpacing:"-.02em",lineHeight:.98,textAlign:"left",whiteSpace:"nowrap"}}>
+        <span>Inventory</span><span style={{opacity:.72}}>Forecast</span>
+      </span>
+    </span>
+  );
 }
 
 /* Mounts its chart a beat after the page has painted (staggered per chart) so the
@@ -4334,7 +4343,6 @@ function FBAPlannerApp({onLogout,authEmail}:{onLogout?:()=>void;authEmail?:strin
   const goTab=(id:string)=>{setSelSku(null);setTab(id);setMenuOpen(false);};
   const isOn=(id:string)=>tab===id||(tab==="detail"&&id==="allskus");
   const isDisabled=(id:string)=>id!=="input"&&!data&&id!=="warnings";
-  const MARK=<LogoMark size={20}/>;
   const TAB_BAR=["dashboard","allskus","fc","lis","procurement"];
   const signOut=()=>{if(window.confirm("Sign out of this device?"))onLogout&&onLogout();};
 
@@ -4356,10 +4364,7 @@ function FBAPlannerApp({onLogout,authEmail}:{onLogout?:()=>void;authEmail?:strin
       {/* SIDEBAR: fixed 240px on laptops; phones get the top bar + tab bar instead */}
       <div className={`sb-bg${menuOpen?" open":""}`} onClick={()=>setMenuOpen(false)}/>
       <nav className={`sb${menuOpen?" open":""}`} aria-label="Main" aria-hidden={!menuOpen} onKeyDown={e=>{if(e.key==="Escape")setMenuOpen(false);}}>
-        <div className="sb-logo">
-          <div className="sb-icon">{MARK}</div>
-          <div className="sb-txt"><h1>Inventory Forecast</h1></div>
-        </div>
+        <div className="sb-logo"><Logo size={30}/></div>
         <div className="sb-nav">{navItems()}</div>
         <div className="sb-user">
           <div className="sb-user-name"><b>{firstName}</b>{authEmail}</div>
@@ -4394,7 +4399,7 @@ function FBAPlannerApp({onLogout,authEmail}:{onLogout?:()=>void;authEmail?:strin
           <div style={{fontSize:12,color:t.text3}}>Fetching sheets and calculating</div>
         </div>}
         <div className="mbar">
-          <div className="mbar-brand"><div className="sb-icon">{MARK}</div>Inventory Forecast</div>
+          <div className="mbar-brand"><Logo size={28}/></div>
           <div className="mbar-r"><button type="button" className="mbar-btn" aria-label="Open menu" aria-expanded={menuOpen} onClick={()=>setMenuOpen(true)}>☰</button></div>
         </div>
         <div className="topbar">
