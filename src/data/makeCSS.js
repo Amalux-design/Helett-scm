@@ -15,6 +15,9 @@ body{height:100%;overflow:hidden;background:${t.bg};color:${t.text};font-family:
 .content,.topbar,.tb-title,.tb-sub,.ch,.card,.kc,h1,h2,h3,p,div{text-align:left}
 :focus-visible{outline:2px solid ${t.focus};outline-offset:2px}
 button,input,select,textarea{font-family:${SANS}}
+::view-transition-old(root),::view-transition-new(root){animation:none;mix-blend-mode:normal}
+::view-transition-old(root){z-index:1}
+::view-transition-new(root){z-index:2}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}}
 
 /* ── SIDEBAR (laptop: fixed 240px) ── */
@@ -61,6 +64,8 @@ button,input,select,textarea{font-family:${SANS}}
 .btn:disabled,.tb-btn:disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
 .bp,.tb-btn.pri{background:${t.accent};color:${t.onInk};border-color:${t.accent}}
 .bp:hover,.tb-btn.pri:hover{background:${t.accent};border-color:${t.accent};opacity:.88}
+.bx{background:${t.text};color:${t.bg};border-color:${t.text}}
+.bx:hover{background:${t.text};border-color:${t.text};opacity:.88}
 .bn{background:${t.green};color:#fff;border-color:${t.green}}
 .bn:hover{background:${t.green};border-color:${t.green};opacity:.9}
 .bs{background:${t.surface};color:${t.text};border-color:${t.border2}}

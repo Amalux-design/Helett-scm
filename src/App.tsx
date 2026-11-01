@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo, forwardRef, useImperativeHandle, lazy, Suspense, Children, isValidElement } from "react";
-import { createPortal } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, BarChart, Bar, Cell } from "recharts";
 import { SKU_MAP } from "./data/skuMap.js";
 import { FC_CITY, fcLabel, FC_REGION } from "./data/fcMapping.js";
@@ -1561,7 +1561,7 @@ function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,s
           <option value="all">All SKUs</option><option value="critical">Critical</option>
           <option value="high">High Priority</option><option value="ok">OK</option><option value="over">Overstock</option>
         </Select>
-        <button className="btn bs" style={{fontSize:11}} onClick={exportCSV} title="Exports the rows currently shown, with columns reflecting the Include FBA/FC/Transfer/Inbound toggles above">
+        <button className="btn bx" style={{fontSize:13}} onClick={exportCSV} title="Exports the rows currently shown, with columns reflecting the Include FBA/FC/Transfer/Inbound toggles above">
           ⬇ Export CSV
         </button>
         {picked.size>0&&<span style={{fontSize:9,color:t.accent,fontFamily:"'Instrument Sans',system-ui,sans-serif",fontWeight:700}}>{picked.size} selected</span>}
@@ -3901,6 +3901,88 @@ async function checkCreds(rows,email,pass){
   }
   return null;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   LOGIN — split screen: ink brand panel + form. Follows the OS light/dark setting.
+═══════════════════════════════════════════════════════════════ */
+function LoginView({email,setEmail,pass,setPass,err,busy,onSubmit}:any){
+  const[dark,setDark]=useState(()=>{try{return window.matchMedia("(prefers-color-scheme: dark)").matches;}catch(_){return false;}});
+  const[show,setShow]=useState(false);
+  const[caps,setCaps]=useState(false);
+  const t=dark?DARK:LIGHT;
+  const css=`
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+.au{text-align:left;min-height:100vh;display:grid;grid-template-columns:minmax(320px,5fr) minmax(360px,6fr);background:${t.bg};color:${t.text};font-family:'Instrument Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.au *{box-sizing:border-box}
+.au-brand{background:${dark?"#0a0c0f":"#12161c"};color:#eceff3;padding:40px 48px;display:flex;flex-direction:column;justify-content:space-between;border-right:1px solid ${t.border}}
+.au-logo{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:600}
+.au-mark{width:30px;height:30px;border-radius:8px;background:#eceff3;color:#12161c;display:flex;align-items:center;justify-content:center}
+.au-claim{font-size:38px;line-height:1.1;font-weight:600;letter-spacing:-.8px;max-width:420px}
+.au-sub{margin-top:14px;font-size:16px;line-height:1.5;color:#9099a6;max-width:400px}
+.au-stats{display:flex;gap:28px;font-family:'IBM Plex Mono',monospace}
+.au-stat b{display:block;font-size:22px;font-weight:500;color:#eceff3}
+.au-stat span{font-family:'Instrument Sans',sans-serif;font-size:13px;color:#9099a6}
+.au-main{display:flex;align-items:center;justify-content:center;padding:32px 24px;position:relative}
+.au-theme{position:absolute;top:20px;right:20px;width:40px;height:40px;border-radius:8px;border:1px solid ${t.border2};background:${t.surface};color:${t.text};cursor:pointer;display:flex;align-items:center;justify-content:center}
+.au-form{width:100%;max-width:380px;display:flex;flex-direction:column;gap:16px;text-align:left}
+.au-form h1{font-size:28px;font-weight:600;letter-spacing:-.4px;line-height:1.2}
+.au-form p.lead{font-size:15px;color:${t.text3};margin-top:-8px}
+.au-field{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:500;color:${t.text2}}
+.au-wrap{position:relative}
+.au-in{width:100%;height:44px;padding:0 12px;border-radius:8px;border:1px solid ${t.border2};background:${t.surface};color:${t.text};font-size:16px;font-family:inherit;outline:none}
+.au-in:focus{border-color:${t.text};outline:2px solid ${t.focus};outline-offset:1px}
+.au-eye{position:absolute;right:4px;top:4px;height:36px;padding:0 10px;border:0;background:transparent;color:${t.text3};font-size:13px;font-weight:500;cursor:pointer;border-radius:6px;font-family:inherit}
+.au-eye:hover{color:${t.text}}
+.au-btn{height:44px;border-radius:8px;border:1px solid ${t.text};background:${t.text};color:${t.bg};font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:10px}
+.au-btn:disabled{opacity:.6;cursor:wait}
+.au-btn:hover:not(:disabled){opacity:.9}
+.au-err{display:flex;gap:8px;padding:10px 12px;border-radius:8px;border:1px solid ${t.red};color:${t.red};font-size:14px;background:${t.surface}}
+.au-hint{font-size:13px;color:${t.text3}}
+.au-spin{width:16px;height:16px;border-radius:50%;border:2px solid currentColor;border-top-color:transparent;animation:auspin .8s linear infinite}
+@keyframes auspin{to{transform:rotate(360deg)}}
+.au button:focus-visible{outline:2px solid ${t.focus};outline-offset:2px}
+@media(max-width:860px){.au{grid-template-columns:1fr}.au-brand{padding:20px 24px;flex-direction:row;align-items:center;border-right:0;border-bottom:1px solid ${t.border}}.au-claim,.au-sub,.au-stats{display:none}.au-main{align-items:flex-start;padding-top:40px}}
+@media(prefers-reduced-motion:reduce){.au-spin{animation-duration:2s}}`;
+  return(
+    <div className="au">
+      <style>{css}</style>
+      <aside className="au-brand">
+        <div className="au-logo"><div className="au-mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="9" cy="9" r="5"/><circle cx="15" cy="15" r="5"/></svg></div>Inventory Forecast</div>
+        <div>
+          <div className="au-claim">Know what to ship before it runs out.</div>
+          <div className="au-sub">Stock cover, lead times and purchase timing for every Helett SKU, from your own Google Sheets.</div>
+        </div>
+        <div className="au-stats">
+          <div className="au-stat"><b>FBA + FC</b><span>Stock in one view</span></div>
+          <div className="au-stat"><b>Air / Sea</b><span>Shipment plans</span></div>
+        </div>
+      </aside>
+      <main className="au-main">
+        <button type="button" className="au-theme" aria-label={dark?"Switch to light theme":"Switch to dark theme"} onClick={()=>setDark(d=>!d)}>
+          {dark?<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>}
+        </button>
+        <form className="au-form" onSubmit={onSubmit} noValidate>
+          <h1>Sign in</h1>
+          <p className="lead">Use the email and password your admin added.</p>
+          <label className="au-field">Email
+            <input className="au-in" type="email" autoComplete="username" autoFocus value={email} onChange={e=>setEmail(e.target.value)} aria-invalid={!!err}/>
+          </label>
+          <label className="au-field">Password
+            <div className="au-wrap">
+              <input className="au-in" style={{paddingRight:64}} type={show?"text":"password"} autoComplete="current-password" value={pass}
+                onChange={e=>setPass(e.target.value)} onKeyUp={e=>setCaps(e.getModifierState&&e.getModifierState("CapsLock"))} aria-invalid={!!err}/>
+              <button type="button" className="au-eye" onClick={()=>setShow(v=>!v)} aria-pressed={show}>{show?"Hide":"Show"}</button>
+            </div>
+            {caps&&<span className="au-hint">Caps Lock is on.</span>}
+          </label>
+          {err&&<div className="au-err" role="alert">{err}</div>}
+          <button type="submit" className="au-btn" disabled={busy}>{busy&&<span className="au-spin"/>}{busy?"Checking…":"Sign in"}</button>
+          <div className="au-hint">No access yet? Ask your admin to add your email to the Users sheet.</div>
+        </form>
+      </main>
+    </div>
+  );
+}
 export default function FBAPlanner(){
   const[state,setState]=useState("checking"); // checking | out | in
   const[email,setEmail]=useState("");
@@ -3949,27 +4031,8 @@ export default function FBAPlanner(){
     setEmail(""); setPass(""); setState("out");
   }
 
-  if(state==="checking") return <div style={{minHeight:"100vh",background:LIGHT.bg}}/>;
-  if(state==="out"){
-    const f:any={height:44,padding:"0 12px",borderRadius:8,border:`1px solid ${LIGHT.border2}`,background:"#fff",color:LIGHT.text,fontSize:16,fontFamily:"'Instrument Sans',system-ui,sans-serif"};
-    return (
-    <div style={{minHeight:"100vh",background:LIGHT.bg,display:"flex",alignItems:"center",justifyContent:"center",padding:16,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
-      <style>{"@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap');input:focus-visible,button:focus-visible{outline:2px solid "+LIGHT.focus+";outline-offset:2px}"}</style>
-      <form onSubmit={doLogin} style={{width:"100%",maxWidth:380,background:"#fff",border:`1px solid ${LIGHT.border}`,borderRadius:12,padding:24,display:"flex",flexDirection:"column",gap:12,textAlign:"left"}}>
-        <div style={{color:LIGHT.text,fontSize:24,fontWeight:600}}>Inventory Forecast</div>
-        <div style={{color:LIGHT.text3,fontSize:15,marginBottom:6}}>Sign in with the email and password your admin added.</div>
-        <label style={{fontSize:14,fontWeight:500,color:LIGHT.text2}}>Email
-          <input type="email" autoComplete="username" value={email} onChange={e=>setEmail(e.target.value)} style={{...f,width:"100%",marginTop:6,display:"block"}}/></label>
-        <label style={{fontSize:14,fontWeight:500,color:LIGHT.text2}}>Password
-          <input type="password" autoComplete="current-password" value={pass} onChange={e=>setPass(e.target.value)} style={{...f,width:"100%",marginTop:6,display:"block"}}/></label>
-        {err&&<div role="alert" style={{color:LIGHT.red,fontSize:14}}>{err}</div>}
-        <button type="submit" disabled={busy} style={{height:44,borderRadius:8,border:"none",background:LIGHT.accent,color:"#fff",fontSize:15,fontWeight:500,cursor:busy?"wait":"pointer",fontFamily:"inherit"}}>
-          {busy?"Checking…":"Sign in"}
-        </button>
-      </form>
-    </div>
-    );
-  }
+  if(state==="checking") return <div style={{minHeight:"100vh",background:"#0e1114"}}/>;
+  if(state==="out") return <LoginView email={email} setEmail={setEmail} pass={pass} setPass={setPass} err={err} busy={busy} onSubmit={doLogin}/>;
   let authEmail="";
   try{ authEmail=JSON.parse(localStorage.getItem(AUTH_KEY)||"{}").email||""; }catch(_){}
   return <FBAPlannerApp onLogout={logout} authEmail={authEmail}/>;
@@ -4234,6 +4297,23 @@ function FBAPlannerApp({onLogout,authEmail}:{onLogout?:()=>void;authEmail?:strin
   const anchorLabel = rawData?.maxDate ? `Data: ${fmtDate(rawData.maxDate)}` : fmtDate(getToday());
 
   const firstName=(authEmail||"").split("@")[0].split(/[._-]/)[0].replace(/^./,c=>c.toUpperCase())||"Account";
+  // Theme switch: circular reveal from the button via the View Transitions API;
+  // browsers without it (or with reduced motion) just switch.
+  function toggleTheme(e:any){
+    const doc:any=document;
+    const reduce=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if(!doc.startViewTransition||reduce){ setDark(d=>!d); return; }
+    const r=e.currentTarget.getBoundingClientRect();
+    const x=r.left+r.width/2, y=r.top+r.height/2;
+    const rad=Math.hypot(Math.max(x,innerWidth-x),Math.max(y,innerHeight-y));
+    const vt=doc.startViewTransition(()=>{ flushSync(()=>setDark(d=>!d)); });
+    vt.ready.then(()=>{
+      document.documentElement.animate(
+        {clipPath:[`circle(0px at ${x}px ${y}px)`,`circle(${rad}px at ${x}px ${y}px)`]},
+        {duration:550,easing:"cubic-bezier(.4,0,.2,1)",pseudoElement:"::view-transition-new(root)"}
+      );
+    }).catch(()=>{});
+  }
   const goTab=(id:string)=>{setSelSku(null);setTab(id);setMenuOpen(false);};
   const isOn=(id:string)=>tab===id||(tab==="detail"&&id==="allskus");
   const isDisabled=(id:string)=>id!=="input"&&!data&&id!=="warnings";
@@ -4317,7 +4397,7 @@ function FBAPlannerApp({onLogout,authEmail}:{onLogout?:()=>void;authEmail?:strin
             )}
             <button className="tb-btn pri" onClick={()=>dataInputRef.current?.refreshSheets()} disabled={loading} title="Re-fetch data from Google Sheets">{loading?"Refreshing…":"⟳ Refresh"}</button>
             <button className="tb-btn danger" onClick={()=>{if(window.confirm("Reset Purchased Units, Priority Demand and Add Inbound for every SKU back to default? This can't be undone."))resetManualValues();}} title="Reset Purchased Units, Priority Demand and Add Inbound for every SKU back to default">↺ Reset Values</button>
-            <button className="tb-btn tb-icon" onClick={()=>setDark(d=>!d)} aria-label={dark?"Switch to light theme":"Switch to dark theme"} title={dark?"Light theme":"Dark theme"}>{dark?<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>}</button>
+            <button className="tb-btn tb-icon" onClick={toggleTheme} aria-label={dark?"Switch to light theme":"Switch to dark theme"} title={dark?"Light theme":"Dark theme"}>{dark?<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>}</button>
           </div>
         </div>
         <div className="content">
