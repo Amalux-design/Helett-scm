@@ -47,7 +47,7 @@ button,input,select,textarea{font-family:${SANS}}
 /* ── MAIN / TOPBAR ── */
 .main{flex:1;min-width:0;overflow:hidden;display:flex;flex-direction:column;background:${t.bg}}
 .mbar,.tabbar,.msheet-wrap{display:none}
-.topbar{min-height:64px;background:${t.surface};border-bottom:1px solid ${t.border};display:flex;align-items:center;padding:8px 32px;gap:12px;flex-shrink:0;min-width:0}
+.topbar{min-height:60px;background:${t.surface};border-bottom:1px solid ${t.border};display:flex;align-items:center;padding:8px 32px;gap:12px;flex-shrink:0;min-width:0}
 .tb-title{font-size:24px;font-weight:600;color:${t.text};white-space:nowrap;letter-spacing:-.3px;overflow:hidden;text-overflow:ellipsis;max-width:420px;line-height:1.2}
 .tb-sub{font-size:13px;color:${t.text3};white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tb-r{margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0}
@@ -72,6 +72,9 @@ button,input,select,textarea{font-family:${SANS}}
 .tb-btn.danger:hover{background:${t.redBg};border-color:${t.red}}
 .bk{height:44px;margin-bottom:12px;font-weight:500}
 .tb-btn-accent{display:none}
+.tb-r .tb-btn{height:34px;padding:0 12px;font-size:13px;gap:6px}
+.tb-r .tb-icon{width:34px;padding:0}
+.tb-meta{font-size:13px;color:${t.text3};white-space:nowrap;margin-right:6px}
 
 /* ── BADGES (24px, 8px radius, no dots, outline only) ── */
 .badge{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 8px;border-radius:8px;font-size:13px;font-weight:500;white-space:nowrap;border:1px solid ${t.text}!important;background:${t.surface}!important;color:${t.text}!important}
@@ -211,7 +214,7 @@ tr.cr{cursor:pointer}
   .topbar{padding:12px 16px;flex-wrap:wrap}
   .tb-title{font-size:22px;max-width:100%}
   .tb-r{margin-left:0;flex-wrap:wrap;width:100%}
-  .tb-badge{display:none}
+  .tb-badge,.tb-meta{display:none}
   .content{padding:16px 16px 96px}
   .tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:40;height:68px;background:${t.surface};border-top:1px solid ${t.border};padding:6px 4px}
   .tab{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:0;background:transparent;color:${t.text3};font-size:12px;font-weight:500;cursor:pointer}
