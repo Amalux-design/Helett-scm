@@ -18,6 +18,7 @@ button,input,select,textarea{font-family:${SANS}}
 ::view-transition-old(root),::view-transition-new(root){animation:none;mix-blend-mode:normal}
 ::view-transition-old(root){z-index:1}
 ::view-transition-new(root){z-index:2}
+.chart-skel{border-radius:8px;background:${t.surface2};opacity:.6}
 .chart-reveal{animation:chartIn .7s cubic-bezier(.22,.8,.3,1) both;will-change:opacity,clip-path}
 @keyframes chartIn{from{opacity:0;clip-path:inset(0 100% 0 0)}to{opacity:1;clip-path:inset(0 0 0 0)}}
 @media(prefers-reduced-motion:reduce){.chart-reveal{animation:none}*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}}

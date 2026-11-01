@@ -1278,7 +1278,7 @@ function InventoryHealthBar({skus, t}) {
 
   return(
     <div>
-      <div className="chart-reveal"><ResponsiveContainer width="100%" height={180}>
+      <DeferredChart h={180} delay={0}><ResponsiveContainer width="100%" height={180}>
         <BarChart data={data} layout="vertical" margin={{top:4,right:50,left:0,bottom:4}}>
           <CartesianGrid strokeDasharray="2 4" stroke={t.border} horizontal={false}/>
           <XAxis type="number" tick={{fill:t.text3,fontSize:11}} axisLine={false} tickLine={false}/>
@@ -1292,7 +1292,7 @@ function InventoryHealthBar({skus, t}) {
             {data.map((d,i)=><Cell key={i} fill={d.color} fillOpacity={.82}/>)}
           </Bar>
         </BarChart>
-      </ResponsiveContainer></div>
+      </ResponsiveContainer></DeferredChart>
       <div style={{display:"flex",gap:10,flexWrap:"wrap",marginTop:4}}>
         {data.map(d=>(
           <span key={d.label} style={{display:"flex",alignItems:"center",gap:4,fontSize:9,fontFamily:"'Instrument Sans',system-ui,sans-serif",color:t.text3}}>
@@ -1394,7 +1394,7 @@ function Dashboard({data,settings,setSettings,onSku,t,purchRows}){
       <div className="card">
         <div className="ch">Most at Risk — Lowest Days of Inventory</div>
         {atRisk.length>0?(
-          <div className="chart-reveal"><ResponsiveContainer width="100%" height={220}>
+          <DeferredChart h={220} delay={250}><ResponsiveContainer width="100%" height={220}>
             <BarChart layout="vertical" data={atRisk} margin={{top:0,right:40,left:0,bottom:0}}
               onClick={e=>e?.activePayload&&onSku(e.activePayload[0]?.payload?.asin)}
               style={{cursor:"pointer"}}>
@@ -1412,7 +1412,7 @@ function Dashboard({data,settings,setSettings,onSku,t,purchRows}){
                 ))}
               </Bar>
             </BarChart>
-          </ResponsiveContainer></div>
+          </ResponsiveContainer></DeferredChart>
         ):(
           <div style={{padding:"30px 0",textAlign:"center",fontSize:11,color:t.text3}}>No active SKUs with demand data</div>
         )}
@@ -1422,7 +1422,7 @@ function Dashboard({data,settings,setSettings,onSku,t,purchRows}){
     {/* Chart row 2: Top demand */}
     {topD.length>0&&<div className="card" style={{marginBottom:10}}>
       <div className="ch">Top 8 by Weighted Daily Demand</div>
-      <div className="chart-reveal"><ResponsiveContainer width="100%" height={190}>
+      <DeferredChart h={190} delay={500}><ResponsiveContainer width="100%" height={190}>
         <BarChart data={topD} margin={{top:4,right:12,left:0,bottom:50}}
           onClick={e=>e?.activePayload&&onSku(e.activePayload[0]?.payload?.asin)}
           style={{cursor:"pointer"}}>
@@ -1436,7 +1436,7 @@ function Dashboard({data,settings,setSettings,onSku,t,purchRows}){
           />
           <Bar dataKey="demand" fill={t.accent} fillOpacity={.75} radius={[3,3,0,0]} maxBarSize={36} isAnimationActive={false}/>
         </BarChart>
-      </ResponsiveContainer></div>
+      </ResponsiveContainer></DeferredChart>
     </div>}
 
     {/* Priority Alerts table */}
@@ -3924,13 +3924,13 @@ html,body{background:${t.bg}!important}
 .au-stat b{display:block;font-size:22px;font-weight:500;color:#eceff3}
 .au-stat span{font-family:'Instrument Sans',sans-serif;font-size:13px;color:#9099a6}
 .au-main{display:flex;align-items:center;justify-content:center;padding:32px 24px;position:relative}
-.au-theme{position:absolute;top:20px;right:20px;width:40px;height:40px;border-radius:8px;border:1px solid ${t.border2};background:${t.surface};color:${t.text};cursor:pointer;display:flex;align-items:center;justify-content:center}
+.au-theme{position:absolute;top:20px;right:20px;width:40px;height:40px;border-radius:8px;border:1px solid ${dark?"#6b7480":"#8b94a0"};background:${t.surface};color:${t.text};cursor:pointer;display:flex;align-items:center;justify-content:center}
 .au-form{width:100%;max-width:380px;display:flex;flex-direction:column;gap:16px;text-align:left}
 .au-form h1{font-size:28px;font-weight:600;letter-spacing:-.4px;line-height:1.2}
 .au-form p.lead{font-size:15px;color:${t.text3};margin-top:-8px}
 .au-field{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:500;color:${t.text2}}
 .au-wrap{position:relative}
-.au-in{width:100%;height:44px;padding:0 12px;border-radius:8px;border:1px solid ${t.border2};background:${t.surface};color:${t.text};font-size:16px;font-family:inherit;outline:none}
+.au-in{width:100%;height:44px;padding:0 12px;border-radius:8px;border:1px solid ${dark?"#6b7480":"#8b94a0"};background:${t.surface};color:${t.text};font-size:16px;font-family:inherit;outline:none}
 .au-in:focus{border-color:${t.text};outline:2px solid ${t.focus};outline-offset:1px}
 .au-eye{position:absolute;right:4px;top:4px;height:36px;padding:0 10px;border:0;background:transparent;color:${t.text3};font-size:13px;font-weight:500;cursor:pointer;border-radius:6px;font-family:inherit}
 .au-eye:hover{color:${t.text}}
@@ -4037,6 +4037,18 @@ export default function FBAPlanner(){
   let authEmail="";
   try{ authEmail=JSON.parse(localStorage.getItem(AUTH_KEY)||"{}").email||""; }catch(_){}
   return <FBAPlannerApp onLogout={logout} authEmail={authEmail}/>;
+}
+
+/* Mounts its chart a beat after the page has painted (staggered per chart) so the
+   first screen stays responsive; a same-height placeholder holds the space. */
+function DeferredChart({h,delay=0,children}:any){
+  const[ready,setReady]=useState(false);
+  useEffect(()=>{
+    let t:any, raf=requestAnimationFrame(()=>{ t=setTimeout(()=>setReady(true),150+delay); });
+    return()=>{cancelAnimationFrame(raf);clearTimeout(t);};
+  },[delay]);
+  if(!ready) return <div className="chart-skel" style={{height:h}} aria-busy="true"/>;
+  return <div className="chart-reveal">{children}</div>;
 }
 
 /* ═══════════════════════════════════════════════════════════════
