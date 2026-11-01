@@ -1284,7 +1284,7 @@ function InventoryHealthBar({skus, t}) {
           <XAxis type="number" tick={{fill:t.text3,fontSize:11}} axisLine={false} tickLine={false}/>
           <YAxis type="category" dataKey="label" width={90} tick={{fill:t.text2,fontSize:11,fontFamily:"'Instrument Sans',system-ui,sans-serif"}} axisLine={false} tickLine={false}/>
           <Tooltip
-            contentStyle={{background:t.tooltipBg,border:`1px solid ${t.border}`,borderRadius:8,fontSize:12,fontFamily:"'Instrument Sans',system-ui,sans-serif",boxShadow:"0 4px 12px rgba(0,0,0,.08)"}}
+            labelStyle={{color:t.text,fontWeight:600}} itemStyle={{color:t.text2}} contentStyle={{color:t.text,background:t.tooltipBg,border:`1px solid ${t.border}`,borderRadius:8,fontSize:12,fontFamily:"'Instrument Sans',system-ui,sans-serif",boxShadow:"0 4px 12px rgba(0,0,0,.08)"}}
             formatter={(v,_,{payload})=>[`${v} SKUs (${Math.round(v/total*100)}%)`,payload.label]}
             cursor={{fill:`${t.accent}08`}}
           />
@@ -1402,7 +1402,7 @@ function Dashboard({data,settings,setSettings,onSku,t,purchRows}){
               <XAxis type="number" tick={{fill:t.text3,fontSize:11}} unit="d" axisLine={false} tickLine={false}/>
               <YAxis type="category" dataKey="name" width={130} tick={{fill:t.text2,fontSize:11,fontFamily:"'Instrument Sans',system-ui,sans-serif"}} axisLine={false} tickLine={false}/>
               <Tooltip
-                contentStyle={{background:t.tooltipBg,border:`1px solid ${t.border}`,borderRadius:8,fontSize:12,fontFamily:"'Instrument Sans',system-ui,sans-serif",boxShadow:"0 4px 12px rgba(0,0,0,.08)"}}
+                labelStyle={{color:t.text,fontWeight:600}} itemStyle={{color:t.text2}} contentStyle={{color:t.text,background:t.tooltipBg,border:`1px solid ${t.border}`,borderRadius:8,fontSize:12,fontFamily:"'Instrument Sans',system-ui,sans-serif",boxShadow:"0 4px 12px rgba(0,0,0,.08)"}}
                 formatter={v=>[`${v}d`,`Days of Inventory`]}
                 cursor={{fill:`${t.accent}08`}}
               />
@@ -1430,7 +1430,7 @@ function Dashboard({data,settings,setSettings,onSku,t,purchRows}){
           <XAxis dataKey="name" tick={{fill:t.text3,fontSize:9,fontFamily:"'Instrument Sans',system-ui,sans-serif"}} angle={-35} textAnchor="end" axisLine={false} tickLine={false}/>
           <YAxis tick={{fill:t.text3,fontSize:11}} axisLine={false} tickLine={false}/>
           <Tooltip
-            contentStyle={{background:t.tooltipBg,border:`1px solid ${t.border}`,borderRadius:8,fontSize:12,fontFamily:"'Instrument Sans',system-ui,sans-serif",boxShadow:"0 4px 12px rgba(0,0,0,.08)"}}
+            labelStyle={{color:t.text,fontWeight:600}} itemStyle={{color:t.text2}} contentStyle={{color:t.text,background:t.tooltipBg,border:`1px solid ${t.border}`,borderRadius:8,fontSize:12,fontFamily:"'Instrument Sans',system-ui,sans-serif",boxShadow:"0 4px 12px rgba(0,0,0,.08)"}}
             formatter={v=>[`${v} u/day`,"Demand"]}
             cursor={{fill:`${t.accent}08`}}
           />
@@ -3610,7 +3610,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
           <Tooltip
             labelFormatter={dt=>{const p=dt.split("-");return `${p[2]}/${p[1]}/${p[0]}`;}}
             formatter={v=>[fmt(v),"Units sold"]}
-            contentStyle={{background:t.tooltipBg,border:`1px solid ${t.border}`,borderRadius:8,fontSize:12,fontFamily:"'Instrument Sans',system-ui,sans-serif",boxShadow:"0 4px 12px rgba(0,0,0,.08)"}}
+            labelStyle={{color:t.text,fontWeight:600}} itemStyle={{color:t.text2}} contentStyle={{color:t.text,background:t.tooltipBg,border:`1px solid ${t.border}`,borderRadius:8,fontSize:12,fontFamily:"'Instrument Sans',system-ui,sans-serif",boxShadow:"0 4px 12px rgba(0,0,0,.08)"}}
             labelStyle={{color:t.text2}} itemStyle={{color:t.accent}}/>
           <Line type="monotone" dataKey="units" stroke={t.accent} strokeWidth={2} dot={false} activeDot={{r:4}}/>
         </LineChart>
@@ -3654,8 +3654,8 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
           <XAxis dataKey="date" tick={{fill:t.text3,fontSize:11}} interval={Math.ceil(forecast.length/10)}/>
           <YAxis tick={{fill:t.text3,fontSize:10}}
             domain={[0, Math.ceil(Math.max(sku.currentStock, reorderStock) * 1.12)]}/>
-          <Tooltip contentStyle={{background:"#1f2937",border:"1px solid #374151",borderRadius:8,fontSize:11}}
-            itemStyle={{color:"#f9fafb"}} labelStyle={{color:"#d1d5db"}}/>
+          <Tooltip contentStyle={{background:t.tooltipBg,border:`1px solid ${t.border}`,borderRadius:8,fontSize:12,color:t.text}}
+            itemStyle={{color:t.text2}} labelStyle={{color:t.text,fontWeight:600}}/>
           {/* Reorder level horizontal line — always visible since Y-axis scales to include it */}
           {reorderStock>0&&(
             <ReferenceLine y={reorderStock} stroke={t.yellow} strokeDasharray="6 3" strokeWidth={1.5}
@@ -3926,7 +3926,7 @@ html,body{background:${t.bg}!important}
 .au-main{display:flex;align-items:center;justify-content:center;padding:32px 24px;position:relative}
 .au-theme{position:absolute;top:20px;right:20px;width:40px;height:40px;border-radius:8px;border:1px solid ${dark?"#6b7480":"#8b94a0"};background:${t.surface};color:${t.text};cursor:pointer;display:flex;align-items:center;justify-content:center}
 .au-form{width:100%;max-width:380px;display:flex;flex-direction:column;gap:16px;text-align:left}
-.au-form h1{font-size:28px;font-weight:600;letter-spacing:-.4px;line-height:1.2}
+.au-form h1{color:${t.text};font-size:28px;font-weight:600;letter-spacing:-.4px;line-height:1.2}
 .au-form p.lead{font-size:15px;color:${t.text3};margin-top:-8px}
 .au-field{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:500;color:${t.text2}}
 .au-wrap{position:relative}
