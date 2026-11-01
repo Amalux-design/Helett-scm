@@ -1705,7 +1705,7 @@ function FCView({data,settings,setSettings,onSku,t}){
   return(<div>
     <SBar settings={settings} setSettings={setSettings} t={t}/>
 
-    <div className="kg" style={{gridTemplateColumns:"repeat(4,1fr)",marginBottom:12}}>
+    <div className="kg" style={{marginBottom:12}}>
       {[
         {l:"Fulfilment Centres",v:warehouses.length,s:"With ledger data",c:"b"},
         {l:"Critical FCs",v:critWH,s:"Near stockout",c:"r"},
@@ -1966,7 +1966,7 @@ function LISView({data, settings, setSettings, onSku, t}) {
     <div>
       <SBar settings={settings} setSettings={setSettings} t={t}/>
 
-      <div className="kg" style={{gridTemplateColumns:"repeat(4,1fr)",marginBottom:12}}>
+      <div className="kg" style={{marginBottom:12}}>
         {[
           {l:"Total Recommendations",v:rows.length,   s:"FC × SKU needing stock",c:"b"},
           {l:"Critical / Stockout",  v:critCount,     s:"Immediate action",      c:"r"},
@@ -2280,7 +2280,7 @@ function ProcurementForecast({data, ltData, anchorDate, openPoMap, settings, t})
       )}
 
       {/* KPI cards */}
-      <div className="kg" style={{gridTemplateColumns:"repeat(5,1fr)",marginBottom:12}}>
+      <div className="kg kg5" style={{marginBottom:12}}>
         {[
           {l:"Critical / Air", v:critCount,  s:"Order air immediately", c:"r"},
           {l:"SEA + AIR Gap",  v:urgCount,   s:"SEA + gap air order needed", c:"o"},
@@ -3758,7 +3758,8 @@ function SKUManager({skuCfg,setSkuCfg,data,settings,setSettings,t}){
     selected.forEach(asin=>{const cur=skuCfg[asin]||{active:true};updates[asin]={...cur,category};});
     setSkuCfg({...skuCfg,...updates});setSelected(new Set());
   }
-  function resetAll(){if(window.confirm("Reset all SKU config to defaults?"))setSkuCfg({...DEFAULT_SKU_CONFIG});}
+  const[confirmDefaults,setConfirmDefaults]=useState(false);
+  function resetAll(){setConfirmDefaults(true);}
   const doiColor=(doi)=>{if(!isFinite(doi)||doi>999)return t.green;if(doi<7)return t.red;if(doi<21)return t.yellow;return t.green;};
 
   return(<div>
@@ -3771,6 +3772,7 @@ function SKUManager({skuCfg,setSkuCfg,data,settings,setSettings,t}){
         </div>
       </div>
       <button className="btn bs" onClick={resetAll} style={{fontSize:11}}>↺ Reset Defaults</button>
+      <ConfirmDialog open={confirmDefaults} title="Reset SKU settings?" message="Every SKU goes back to its default active state and category." confirmLabel="Reset to defaults" danger onCancel={()=>setConfirmDefaults(false)} onConfirm={()=>{setConfirmDefaults(false);setSkuCfg({...DEFAULT_SKU_CONFIG});}}/>
     </div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:12}}>
       {[{l:"Total SKUs",v:allAsins.length,c:""},{l:"Active",v:activeCount,c:"g",sub:"In calculations"},{l:"Inactive",v:inactiveCount,c:"r",sub:"Excluded"},{l:"In Calculations",v:data?Object.keys(data).length:"—",c:"",sub:"Currently loaded"}].map(k=>(
@@ -3949,7 +3951,7 @@ html,body{background:${t.bg}!important}
 .au-spin{width:16px;height:16px;border-radius:50%;border:2px solid currentColor;border-top-color:transparent;animation:auspin .8s linear infinite}
 @keyframes auspin{to{transform:rotate(360deg)}}
 .au button:focus-visible{outline:2px solid ${t.focus};outline-offset:2px}
-@media(max-width:860px){.au{grid-template-columns:1fr}.au-brand{padding:20px 24px;flex-direction:row;align-items:center;justify-content:flex-start;border-right:0;border-bottom:1px solid ${t.border}}.au-logo{position:static}.au-claim,.au-sub,.au-stats{display:none}.au-main{align-items:flex-start;justify-content:center;padding:40px 24px}}
+@media(max-width:860px){.au{grid-template-columns:1fr;grid-template-rows:auto 1fr}.au-brand{padding:16px 20px;flex-direction:row;align-items:center;justify-content:flex-start;border-right:0;border-bottom:1px solid ${t.border}}.au-logo{position:static}.au-claim,.au-sub,.au-stats{display:none}.au-main{align-items:flex-start;justify-content:center;padding:28px 20px}.au-theme{top:12px;right:16px}.au-form{padding-top:44px}}
 @media(prefers-reduced-motion:reduce){.au-spin{animation-duration:2s}}`;
   return(
     <div className="au">
@@ -4039,6 +4041,32 @@ export default function FBAPlanner(){
   let authEmail="";
   try{ authEmail=JSON.parse(localStorage.getItem(AUTH_KEY)||"{}").email||""; }catch(_){}
   return <FBAPlannerApp onLogout={logout} authEmail={authEmail}/>;
+}
+
+/* App-styled confirmation (replaces the browser's window.confirm). Esc / backdrop cancel;
+   focus starts on Cancel so Enter never confirms by accident. */
+function ConfirmDialog({open,title,message,confirmLabel,danger,onConfirm,onCancel}:any){
+  const cancelRef=useRef<HTMLButtonElement>(null);
+  useEffect(()=>{
+    if(!open)return;
+    const prev=document.activeElement as HTMLElement|null;
+    cancelRef.current?.focus();
+    const onKey=(e:KeyboardEvent)=>{ if(e.key==="Escape"){e.stopPropagation();onCancel();} };
+    document.addEventListener("keydown",onKey,true);
+    return()=>{document.removeEventListener("keydown",onKey,true);prev?.focus?.();};
+  },[open]);
+  if(!open)return null;
+  return createPortal(
+    <div className="cfm-wrap" onMouseDown={e=>{if(e.target===e.currentTarget)onCancel();}}>
+      <div className="cfm" role="alertdialog" aria-modal="true" aria-labelledby="cfm-t" aria-describedby="cfm-m">
+        <h2 id="cfm-t" className="cfm-t">{title}</h2>
+        <p id="cfm-m" className="cfm-m">{message}</p>
+        <div className="cfm-b">
+          <button ref={cancelRef} type="button" className="btn" onClick={onCancel}>Cancel</button>
+          <button type="button" className={`btn ${danger?"bd":"bp"}`} onClick={onConfirm}>{confirmLabel}</button>
+        </div>
+      </div>
+    </div>,document.body);
 }
 
 /* Logo lockup: rising-bars mark + two-line wordmark as one unit. Uses currentColor. */
@@ -4179,6 +4207,7 @@ function FBAPlannerApp({onLogout,authEmail}:{onLogout?:()=>void;authEmail?:strin
   const t=dark?DARK:LIGHT;
   const[tab,setTab]=useState("input");
   const[menuOpen,setMenuOpen]=useState(false);
+  const[confirmKind,setConfirmKind]=useState<null|"signout"|"reset">(null);
   const[rawData,setRawData]=useState(null);
   const[data,setData]=useState(null);
   const[warnings,setWarnings]=useState([]);
@@ -4351,7 +4380,8 @@ function FBAPlannerApp({onLogout,authEmail}:{onLogout?:()=>void;authEmail?:strin
   const isOn=(id:string)=>tab===id||(tab==="detail"&&id==="allskus");
   const isDisabled=(id:string)=>id!=="input"&&!data&&id!=="warnings";
   const TAB_BAR=["dashboard","allskus","fc","lis"];
-  const signOut=()=>{if(window.confirm("Sign out of this device?"))onLogout&&onLogout();};
+  const signOut=()=>{setMenuOpen(false);setConfirmKind("signout");};
+  const askReset=()=>{setMenuOpen(false);setConfirmKind("reset");};
 
   function navItems(){
     return TABS.map(tb=>(
@@ -4396,7 +4426,7 @@ function FBAPlannerApp({onLogout,authEmail}:{onLogout?:()=>void;authEmail?:strin
           <div>{navItems()}</div>
           <div className="msheet-actions" aria-label="Actions">
             <button type="button" className="btn" disabled={loading} onClick={()=>{dataInputRef.current?.refreshSheets();setMenuOpen(false);}}>{loading?"Refreshing…":"Refresh data"}</button>
-            <button type="button" className="btn bdl" onClick={()=>{if(window.confirm("Reset Purchased Units, Priority Demand and Add Inbound for every SKU back to default? This can't be undone.")){resetManualValues();setMenuOpen(false);}}}>Reset values</button>
+            <button type="button" className="btn bdl" onClick={askReset}>Reset values</button>
             <button type="button" className="btn" onClick={toggleTheme}>{dark?"Switch to light theme":"Switch to dark theme"}</button>
           </div>
           {onLogout&&<button type="button" className="btn btn-signout" style={{width:"100%",marginTop:12}} onClick={signOut}>Sign out</button>}
@@ -4430,7 +4460,7 @@ function FBAPlannerApp({onLogout,authEmail}:{onLogout?:()=>void;authEmail?:strin
               </span>
             )}
             <button className="tb-btn pri" onClick={()=>dataInputRef.current?.refreshSheets()} disabled={loading} title="Re-fetch data from Google Sheets">{loading?"Refreshing…":"⟳ Refresh"}</button>
-            <button className="tb-btn danger" onClick={()=>{if(window.confirm("Reset Purchased Units, Priority Demand and Add Inbound for every SKU back to default? This can't be undone."))resetManualValues();}} title="Reset Purchased Units, Priority Demand and Add Inbound for every SKU back to default">↺ Reset Values</button>
+            <button className="tb-btn danger" onClick={askReset} title="Reset Purchased Units, Priority Demand and Add Inbound for every SKU back to default">↺ Reset Values</button>
             <button className="tb-btn tb-icon" onClick={toggleTheme} aria-label={dark?"Switch to light theme":"Switch to dark theme"} title={dark?"Light theme":"Dark theme"}>{dark?<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>}</button>
           </div>
         </div>
@@ -4483,5 +4513,9 @@ function FBAPlannerApp({onLogout,authEmail}:{onLogout?:()=>void;authEmail?:strin
         </div>
       </div>
     </div>
+    <ConfirmDialog open={confirmKind==="signout"} title="Sign out?" message="You will need your email and password to sign in again on this device."
+      confirmLabel="Sign out" danger onCancel={()=>setConfirmKind(null)} onConfirm={()=>{setConfirmKind(null);onLogout&&onLogout();}}/>
+    <ConfirmDialog open={confirmKind==="reset"} title="Reset all manual values?" message="Purchased Units, Priority Demand and Add Inbound go back to their defaults for every SKU. This can't be undone."
+      confirmLabel="Reset values" danger onCancel={()=>setConfirmKind(null)} onConfirm={()=>{setConfirmKind(null);resetManualValues();}}/>
   </>);
 }

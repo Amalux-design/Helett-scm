@@ -107,6 +107,7 @@ button,input,select,textarea{font-family:${SANS}}
 .ch,.wh{font-size:16px;font-weight:600;color:${t.text};margin:-4px -4px 16px;padding:0 4px 12px;border-bottom:1px solid ${t.border}}
 .kg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px;width:100%}
 .kc{padding:16px 18px;position:relative;overflow:hidden}
+.kg.kg5{grid-template-columns:repeat(5,minmax(0,1fr))}
 .kc.r{border-color:${t.red}}
 .kl{font-size:14px;color:${t.text3};font-weight:500;margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;justify-content:space-between}
 .kv{font-size:30px;font-weight:600;color:${t.text};line-height:1.1;font-family:${MONO};letter-spacing:-.5px;font-variant-numeric:tabular-nums}
@@ -167,6 +168,12 @@ tr.cr{cursor:pointer}
 .sel-sm{height:32px;min-width:110px;padding:0 8px;font-size:13px;border-radius:6px}
 .sel-menu{position:fixed;z-index:200;background:${t.surface};border:1px solid ${t.border2};border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.14);padding:4px;max-height:280px;overflow-y:auto}
 .sel-search{width:100%;height:36px;margin-bottom:4px;padding:0 10px;background:${t.surface2};border:1px solid ${t.border};border-radius:6px;color:${t.text};font-size:14px;outline:none}
+.cfm-wrap{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px}
+.cfm{width:100%;max-width:400px;background:${t.surface};color:${t.text};border:1px solid ${t.border2};border-radius:12px;padding:20px;box-shadow:0 12px 32px rgba(0,0,0,.28)}
+.cfm-t{font-size:18px;font-weight:600;margin-bottom:8px}
+.cfm-m{font-size:15px;line-height:1.5;color:${t.text2};margin-bottom:20px}
+.cfm-b{display:flex;gap:8px;justify-content:flex-end}
+@media(max-width:600px){.cfm-wrap{align-items:flex-end;padding:0}.cfm{max-width:none;border-radius:12px 12px 0 0;border-bottom:0}.cfm-b .btn{flex:1}}
 .sel-opt{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:40px;padding:0 10px;border-radius:6px;font-size:15px;color:${t.text};cursor:pointer}
 .sel-opt.hl{background:${t.surface2}}
 .sel-opt.on{font-weight:700}
@@ -255,7 +262,8 @@ tr.cr{cursor:pointer}
   .slg{padding:0 16px}
   .igrid{grid-template-columns:1fr}
   .d4{grid-template-columns:repeat(2,1fr)}
-  .kg{grid-template-columns:repeat(2,1fr)}
+  .kg,.kg.kg5{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .kl,.ks{white-space:normal}
 }
 @media(max-width:600px){
   .sbar{padding:6px 12px}
