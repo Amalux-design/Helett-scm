@@ -3917,7 +3917,7 @@ html,body{background:${t.bg}!important}
 .au *{box-sizing:border-box}
 .au-brand{background:${dark?"#0a0c0f":"#12161c"};color:#eceff3;padding:40px 48px;display:flex;flex-direction:column;justify-content:space-between;border-right:1px solid ${t.border}}
 .au-logo{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:600}
-.au-mark{width:30px;height:30px;border-radius:8px;background:#eceff3;color:#12161c;display:flex;align-items:center;justify-content:center}
+.au-mark{width:36px;height:36px;border-radius:8px;background:#eceff3;color:#12161c;display:flex;align-items:center;justify-content:center}
 .au-claim{font-size:38px;line-height:1.1;font-weight:600;letter-spacing:-.8px;max-width:420px}
 .au-sub{margin-top:14px;font-size:16px;line-height:1.5;color:#9099a6;max-width:400px}
 .au-stats{display:flex;gap:28px;font-family:'IBM Plex Mono',monospace}
@@ -3948,14 +3948,9 @@ html,body{background:${t.bg}!important}
     <div className="au">
       <style>{css}</style>
       <aside className="au-brand">
-        <div className="au-logo"><div className="au-mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="9" cy="9" r="5"/><circle cx="15" cy="15" r="5"/></svg></div>Inventory Forecast</div>
+        <div className="au-logo"><div className="au-mark"><LogoMark size={22}/></div>Inventory Forecast</div>
         <div>
           <div className="au-claim">Know what to ship before it runs out.</div>
-          <div className="au-sub">Stock cover, lead times and purchase timing for every Helett SKU, from your own Google Sheets.</div>
-        </div>
-        <div className="au-stats">
-          <div className="au-stat"><b>FBA + FC</b><span>Stock in one view</span></div>
-          <div className="au-stat"><b>Air / Sea</b><span>Shipment plans</span></div>
         </div>
       </aside>
       <main className="au-main">
@@ -4037,6 +4032,15 @@ export default function FBAPlanner(){
   let authEmail="";
   try{ authEmail=JSON.parse(localStorage.getItem(AUTH_KEY)||"{}").email||""; }catch(_){}
   return <FBAPlannerApp onLogout={logout} authEmail={authEmail}/>;
+}
+
+/* Product mark: two solid bars (stock on hand) and one outlined bar (forecast). */
+function LogoMark({size=18}:{size?:number}){
+  return(<svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <rect x="3" y="14" width="4.5" height="7" rx="1" fill="currentColor"/>
+    <rect x="9.75" y="9" width="4.5" height="12" rx="1" fill="currentColor"/>
+    <rect x="16.5" y="3.8" width="4.5" height="17.2" rx="1" stroke="currentColor" strokeWidth="1.7"/>
+  </svg>);
 }
 
 /* Mounts its chart a beat after the page has painted (staggered per chart) so the
@@ -4330,7 +4334,7 @@ function FBAPlannerApp({onLogout,authEmail}:{onLogout?:()=>void;authEmail?:strin
   const goTab=(id:string)=>{setSelSku(null);setTab(id);setMenuOpen(false);};
   const isOn=(id:string)=>tab===id||(tab==="detail"&&id==="allskus");
   const isDisabled=(id:string)=>id!=="input"&&!data&&id!=="warnings";
-  const MARK=<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="9" cy="9" r="5"/><circle cx="15" cy="15" r="5"/></svg>;
+  const MARK=<LogoMark size={20}/>;
   const TAB_BAR=["dashboard","allskus","fc","lis","procurement"];
   const signOut=()=>{if(window.confirm("Sign out of this device?"))onLogout&&onLogout();};
 

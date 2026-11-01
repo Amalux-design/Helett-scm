@@ -31,7 +31,7 @@ button,input,select,textarea{font-family:${SANS}}
 .tb-menu{width:44px;height:44px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid ${t.border2};background:${t.surface};color:${t.text};font-size:18px;cursor:pointer}
 .tb-menu:hover{background:${t.surface2}}
 .sb-logo{padding:0 20px;height:64px;border-bottom:1px solid ${t.sbBorder};display:flex;align-items:center;gap:10px;flex-shrink:0}
-.sb-icon{width:28px;height:28px;background:${t.accent};border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:${t.onInk}}
+.sb-icon{width:34px;height:34px;background:${t.accent};border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:${t.onInk}}
 .sb-txt{overflow:hidden;min-width:0}
 .sb-txt h1{font-size:17px;font-weight:600;color:${t.text};white-space:nowrap;letter-spacing:-.2px}
 .sb-nav{flex:1;padding:12px;overflow-y:auto;overflow-x:hidden}
