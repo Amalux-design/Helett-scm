@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo, forwardRef, useImperativeHandle, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, forwardRef, useImperativeHandle, lazy, Suspense, Children, isValidElement } from "react";
 import { createPortal } from "react-dom";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, BarChart, Bar, Cell } from "recharts";
 import { SKU_MAP } from "./data/skuMap.js";
@@ -721,12 +721,12 @@ function PBadge({action,priority,purchasePct=0,replenishPct=0,t}){
 function DOI({doi,t}){
   if(!isFinite(doi)||doi>999)return<span style={{color:t.green}}>∞</span>;
   const col=doi<7?t.red:doi<21?t.yellow:t.green;
-  return<span style={{color:col,fontFamily:"'Inter',system-ui,sans-serif"}}>{fmt(doi,1)}d</span>;
+  return<span style={{color:col,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{fmt(doi,1)}d</span>;
 }
 function TrendBadge({avg7,avg30,t}){
   const trend=calcTrend(avg7,avg30);
-  if(trend==="—") return<span style={{color:t.text3,fontSize:10,fontFamily:"'Inter',system-ui,sans-serif"}}>—</span>;
-  return<span style={{fontSize:10,color:trendColor(trend,t),fontFamily:"'Inter',system-ui,sans-serif",whiteSpace:"nowrap"}}>{trend}</span>;
+  if(trend==="—") return<span style={{color:t.text3,fontSize:10,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>—</span>;
+  return<span style={{fontSize:10,color:trendColor(trend,t),fontFamily:"'Instrument Sans',system-ui,sans-serif",whiteSpace:"nowrap"}}>{trend}</span>;
 }
 
 function DropZone({label,sub,onFile,loaded,fileName}){
@@ -741,7 +741,7 @@ function DropZone({label,sub,onFile,loaded,fileName}){
       onDrop={e=>{e.preventDefault();setDrag(false);onFile(e.dataTransfer.files[0])}}
       onClick={()=>ref.current.click()}>
       <input ref={ref} type="file" accept=".csv,.tsv,.txt" style={{display:"none"}} onChange={e=>onFile(e.target.files[0])}/>
-      <div style={{fontSize:11,fontFamily:"'Inter',system-ui,sans-serif",color:"inherit",marginBottom:6,opacity:.6}}>Upload</div>
+      <div style={{fontSize:11,fontFamily:"'Instrument Sans',system-ui,sans-serif",color:"inherit",marginBottom:6,opacity:.6}}>Upload</div>
       <div style={{fontWeight:700,marginBottom:2}}>{label}</div>
       <div style={{fontSize:9}}>{sub}</div>
     </div>
@@ -789,7 +789,7 @@ function IndiaHeatmap({ regionalSales, fcPlanning, settings, velocity, t }) {
 
   if (totalUnits === 0 && !hasStock) {
     return (
-      <div style={{padding:"18px 0",textAlign:"center",fontSize:11,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif"}}>
+      <div style={{padding:"18px 0",textAlign:"center",fontSize:11,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
         No regional data — ship-state column not found in orders CSV
       </div>
     );
@@ -851,7 +851,7 @@ function IndiaHeatmap({ regionalSales, fcPlanning, settings, velocity, t }) {
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
           <span style={{
             fontSize:14,fontWeight:600,
-            color:t.text,fontFamily:"'Inter',system-ui,sans-serif",
+            color:t.text,fontFamily:"'Instrument Sans',system-ui,sans-serif",
           }}>{region}</span>
           <span style={{display:"flex",alignItems:"center",gap:6,fontSize:12,fontWeight:500,color:st.c}}>
             <span className="dot" style={{background:st.c}}></span>{st.icon} {st.label}
@@ -861,7 +861,7 @@ function IndiaHeatmap({ regionalSales, fcPlanning, settings, velocity, t }) {
         {/* ── Demand number ── */}
         <div style={{marginBottom:8}}>
           <span style={{
-            fontSize:28,fontWeight:800,fontFamily:"'Inter',system-ui,sans-serif",
+            fontSize:28,fontWeight:800,fontFamily:"'Instrument Sans',system-ui,sans-serif",
             color:t.text,lineHeight:1,
           }}>{fmt(demand30)}</span>
           <span style={{fontSize:10,color:t.text3,marginLeft:8}}>demand · {p}% of total</span>
@@ -870,7 +870,7 @@ function IndiaHeatmap({ regionalSales, fcPlanning, settings, velocity, t }) {
         {/* ── Stock vs target line ── */}
         {hasStock && (
           <div style={{
-            fontSize:11,fontFamily:"'Inter',system-ui,sans-serif",
+            fontSize:11,fontFamily:"'Instrument Sans',system-ui,sans-serif",
             marginBottom:10,color:t.text2,
           }}>
             <span style={{color:stock>0?st.c:"#e05252",fontWeight:700}}>{fmt(stock)}</span>
@@ -897,7 +897,7 @@ function IndiaHeatmap({ regionalSales, fcPlanning, settings, velocity, t }) {
               }}/>
             </div>
             <span style={{
-              fontSize:9,color:st.c,fontFamily:"'Inter',system-ui,sans-serif",fontWeight:600,
+              fontSize:9,color:st.c,fontFamily:"'Instrument Sans',system-ui,sans-serif",fontWeight:600,
             }}>
               {coveragePct}% of target reached
             </span>
@@ -923,7 +923,7 @@ function IndiaHeatmap({ regionalSales, fcPlanning, settings, velocity, t }) {
             )}
             <span style={{
               fontSize:12,fontWeight:700,
-              fontFamily:"'Inter',system-ui,sans-serif",color:st.c,
+              fontFamily:"'Instrument Sans',system-ui,sans-serif",color:st.c,
             }}>
               {gap > 0
                 ? `Send ${fmt(gap)} units`
@@ -935,7 +935,7 @@ function IndiaHeatmap({ regionalSales, fcPlanning, settings, velocity, t }) {
         {/* No stock — nudge to upload ledger */}
         {!hasStock && demand30 > 0 && (
           <div style={{
-            fontSize:9,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif",
+            fontSize:9,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif",
             marginTop:4,padding:"5px 8px",background:t.surface,borderRadius:6,
           }}>
             Upload Ledger CSV to see FC stock & gap
@@ -959,12 +959,12 @@ function IndiaHeatmap({ regionalSales, fcPlanning, settings, velocity, t }) {
       <div style={{display:"flex",gap:14,marginBottom:10,flexWrap:"wrap",alignItems:"center"}}>
         {legendItems.map(l=>(
           <div key={l.label} style={{display:"flex",alignItems:"center",gap:5,fontSize:9,
-            fontFamily:"'Inter',system-ui,sans-serif",color:t.text3}}>
+            fontFamily:"'Instrument Sans',system-ui,sans-serif",color:t.text3}}>
             <div style={{width:8,height:8,borderRadius:2,background:l.c,flexShrink:0}}/>
             {l.label}
           </div>
         ))}
-        <span style={{marginLeft:"auto",fontSize:9,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif"}}>
+        <span style={{marginLeft:"auto",fontSize:9,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
           target = demand/day × <strong style={{color:t.text}}>{coverDays}d</strong> cover
         </span>
       </div>
@@ -985,7 +985,7 @@ function IndiaHeatmap({ regionalSales, fcPlanning, settings, velocity, t }) {
       </div>
 
       {/* Footer info */}
-      <div style={{marginTop:8,fontSize:9,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif",
+      <div style={{marginTop:8,fontSize:9,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif",
         display:"flex",gap:12,flexWrap:"wrap"}}>
         <span>Total demand: {fmt(totalUnits)} units (30d)</span>
         {unknownUnits > 0 && <span>· Unclassified: {fmt(unknownUnits)} units</span>}
@@ -1065,7 +1065,7 @@ const DataInput = forwardRef(function DataInput({onLoaded,loading,setLoading,t,p
     <div style={{maxWidth:900}}>
       <div style={{marginBottom:14}}>
         <div style={{fontSize:15,fontWeight:700,color:t.text,marginBottom:3}}>Load Inventory Data</div>
-        <div style={{fontSize:10,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif"}}>
+        <div style={{fontSize:10,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
           Upload CSVs or connect a public Google Sheets document with tabs: Inventory, Sales, Ledger
         </div>
       </div>
@@ -1075,14 +1075,14 @@ const DataInput = forwardRef(function DataInput({onLoaded,loading,setLoading,t,p
       </div>
       <div className="card" style={{marginBottom:18}}>
         <div className="ch">Google Sheets — Live Connection</div>
-        <div style={{fontSize:10,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif",marginBottom:11}}>
+        <div style={{fontSize:10,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif",marginBottom:11}}>
           Sheet must be public. Tabs: <strong>Inventory</strong> · <strong>Sales</strong> · <strong>Ledger</strong> (optional) · <strong>Leadtime</strong> (optional)
         </div>
         <div style={{display:"flex",gap:8,marginBottom:9}}>
           <input className="ti" value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://docs.google.com/spreadsheets/d/..."/>
           <button className="btn bp" onClick={loadSheets} disabled={loading}>{loading?"Fetching…":"Connect"}</button>
         </div>
-        {extractSheetId(url)&&<div style={{fontSize:9,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif"}}>Sheet ID: {extractSheetId(url)}</div>}
+        {extractSheetId(url)&&<div style={{fontSize:9,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>Sheet ID: {extractSheetId(url)}</div>}
       </div>
       <div className="igrid">
         {[{k:"inventory",l:"Inventory",s:"Required · ASIN, SKU, FC Sellable, FBA Available, Inbound"},
@@ -1114,10 +1114,10 @@ const DataInput = forwardRef(function DataInput({onLoaded,loading,setLoading,t,p
             <div style={{fontSize:10,fontWeight:700,color:t.accent,marginBottom:3}}>{lbl} — {cnt} rows</div>
             <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
               {cols.length===0
-                ?<span style={{fontSize:9,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif"}}>No data / not loaded</span>
+                ?<span style={{fontSize:9,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>No data / not loaded</span>
                 :cols.map(c=>{
                   const important=["ASIN","FBA Available","FC Sellable","Inbound","order-status","purchase-date","asin","quantity","Location","Disposition","Ending Warehouse Balance","ship-state","ship-city","Mode of shipment","Lead Time (Days)","Shipping Time (Days)","Customs (Days)","Safety Stock (Days)"].includes(c);
-                  return<span key={c} style={{fontSize:9,padding:"2px 6px",borderRadius:4,fontFamily:"'Inter',system-ui,sans-serif",
+                  return<span key={c} style={{fontSize:9,padding:"2px 6px",borderRadius:4,fontFamily:"'Instrument Sans',system-ui,sans-serif",
                     background:important?t.greenBg:t.surface2,color:important?t.green:t.text3,
                     border:`1px solid ${important?t.greenBdr:t.border}`}}>{c}</span>;
                 })
@@ -1125,7 +1125,7 @@ const DataInput = forwardRef(function DataInput({onLoaded,loading,setLoading,t,p
             </div>
           </div>
         ))}
-        <div style={{fontSize:9,color:t.text3,marginTop:4,fontFamily:"'Inter',system-ui,sans-serif"}}>
+        <div style={{fontSize:9,color:t.text3,marginTop:4,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
           Green = key columns. <strong>ship-state</strong> + <strong>ship-city</strong> needed for regional heatmap &amp; city breakdown. <strong>Leadtime</strong> tab needed for Procurement Forecast.
         </div>
       </div>}
@@ -1282,9 +1282,9 @@ function InventoryHealthBar({skus, t}) {
         <BarChart data={data} layout="vertical" margin={{top:4,right:50,left:0,bottom:4}}>
           <CartesianGrid strokeDasharray="2 4" stroke={t.border} horizontal={false}/>
           <XAxis type="number" tick={{fill:t.text3,fontSize:11}} axisLine={false} tickLine={false}/>
-          <YAxis type="category" dataKey="label" width={90} tick={{fill:t.text2,fontSize:11,fontFamily:"'Inter',system-ui,sans-serif"}} axisLine={false} tickLine={false}/>
+          <YAxis type="category" dataKey="label" width={90} tick={{fill:t.text2,fontSize:11,fontFamily:"'Instrument Sans',system-ui,sans-serif"}} axisLine={false} tickLine={false}/>
           <Tooltip
-            contentStyle={{background:t.tooltipBg,border:`1px solid ${t.border}`,borderRadius:8,fontSize:12,fontFamily:"'Inter',system-ui,sans-serif",boxShadow:"0 4px 12px rgba(0,0,0,.08)"}}
+            contentStyle={{background:t.tooltipBg,border:`1px solid ${t.border}`,borderRadius:8,fontSize:12,fontFamily:"'Instrument Sans',system-ui,sans-serif",boxShadow:"0 4px 12px rgba(0,0,0,.08)"}}
             formatter={(v,_,{payload})=>[`${v} SKUs (${Math.round(v/total*100)}%)`,payload.label]}
             cursor={{fill:`${t.accent}08`}}
           />
@@ -1295,7 +1295,7 @@ function InventoryHealthBar({skus, t}) {
       </ResponsiveContainer>
       <div style={{display:"flex",gap:10,flexWrap:"wrap",marginTop:4}}>
         {data.map(d=>(
-          <span key={d.label} style={{display:"flex",alignItems:"center",gap:4,fontSize:9,fontFamily:"'Inter',system-ui,sans-serif",color:t.text3}}>
+          <span key={d.label} style={{display:"flex",alignItems:"center",gap:4,fontSize:9,fontFamily:"'Instrument Sans',system-ui,sans-serif",color:t.text3}}>
             <span style={{width:7,height:7,borderRadius:2,background:d.color,display:"inline-block",opacity:.85}}/>
             {d.label} <strong style={{color:d.color}}>{d.count}</strong>
           </span>
@@ -1400,9 +1400,9 @@ function Dashboard({data,settings,setSettings,onSku,t,purchRows}){
               style={{cursor:"pointer"}}>
               <CartesianGrid strokeDasharray="2 4" stroke={t.border} horizontal={false}/>
               <XAxis type="number" tick={{fill:t.text3,fontSize:11}} unit="d" axisLine={false} tickLine={false}/>
-              <YAxis type="category" dataKey="name" width={130} tick={{fill:t.text2,fontSize:11,fontFamily:"'Inter',system-ui,sans-serif"}} axisLine={false} tickLine={false}/>
+              <YAxis type="category" dataKey="name" width={130} tick={{fill:t.text2,fontSize:11,fontFamily:"'Instrument Sans',system-ui,sans-serif"}} axisLine={false} tickLine={false}/>
               <Tooltip
-                contentStyle={{background:t.tooltipBg,border:`1px solid ${t.border}`,borderRadius:8,fontSize:12,fontFamily:"'Inter',system-ui,sans-serif",boxShadow:"0 4px 12px rgba(0,0,0,.08)"}}
+                contentStyle={{background:t.tooltipBg,border:`1px solid ${t.border}`,borderRadius:8,fontSize:12,fontFamily:"'Instrument Sans',system-ui,sans-serif",boxShadow:"0 4px 12px rgba(0,0,0,.08)"}}
                 formatter={v=>[`${v}d`,`Days of Inventory`]}
                 cursor={{fill:`${t.accent}08`}}
               />
@@ -1427,10 +1427,10 @@ function Dashboard({data,settings,setSettings,onSku,t,purchRows}){
           onClick={e=>e?.activePayload&&onSku(e.activePayload[0]?.payload?.asin)}
           style={{cursor:"pointer"}}>
           <CartesianGrid strokeDasharray="2 4" stroke={t.border} vertical={false}/>
-          <XAxis dataKey="name" tick={{fill:t.text3,fontSize:9,fontFamily:"'Inter',system-ui,sans-serif"}} angle={-35} textAnchor="end" axisLine={false} tickLine={false}/>
+          <XAxis dataKey="name" tick={{fill:t.text3,fontSize:9,fontFamily:"'Instrument Sans',system-ui,sans-serif"}} angle={-35} textAnchor="end" axisLine={false} tickLine={false}/>
           <YAxis tick={{fill:t.text3,fontSize:11}} axisLine={false} tickLine={false}/>
           <Tooltip
-            contentStyle={{background:t.tooltipBg,border:`1px solid ${t.border}`,borderRadius:8,fontSize:12,fontFamily:"'Inter',system-ui,sans-serif",boxShadow:"0 4px 12px rgba(0,0,0,.08)"}}
+            contentStyle={{background:t.tooltipBg,border:`1px solid ${t.border}`,borderRadius:8,fontSize:12,fontFamily:"'Instrument Sans',system-ui,sans-serif",boxShadow:"0 4px 12px rgba(0,0,0,.08)"}}
             formatter={v=>[`${v} u/day`,"Demand"]}
             cursor={{fill:`${t.accent}08`}}
           />
@@ -1557,22 +1557,22 @@ function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,s
     <div className="card">
       <div className="srow">
         <div className="sbox"><span style={{color:t.text3}}>⌕</span><input placeholder="Name, ASIN, SKU…" value={q} onChange={e=>setQ(e.target.value)}/></div>
-        <select className="sel" value={fil} onChange={e=>setFil(e.target.value)}>
+        <Select className="sel" value={fil} onChange={e=>setFil(e.target.value)}>
           <option value="all">All SKUs</option><option value="critical">Critical</option>
           <option value="high">High Priority</option><option value="ok">OK</option><option value="over">Overstock</option>
-        </select>
+        </Select>
         <button className="btn bs" style={{fontSize:11}} onClick={exportCSV} title="Exports the rows currently shown, with columns reflecting the Include FBA/FC/Transfer/Inbound toggles above">
           ⬇ Export CSV
         </button>
-        {picked.size>0&&<span style={{fontSize:9,color:t.accent,fontFamily:"'Inter',system-ui,sans-serif",fontWeight:700}}>{picked.size} selected</span>}
+        {picked.size>0&&<span style={{fontSize:9,color:t.accent,fontFamily:"'Instrument Sans',system-ui,sans-serif",fontWeight:700}}>{picked.size} selected</span>}
         {picked.size>0&&<button className="btn bs" style={{fontSize:10,padding:"4px 9px"}} onClick={()=>setPicked(new Set())}>Deselect All</button>}
-        <span style={{marginLeft:"auto",fontSize:9,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif"}}>{skus.length}/{Object.keys(data).length}</span>
+        <span style={{marginLeft:"auto",fontSize:9,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{skus.length}/{Object.keys(data).length}</span>
       </div>
       {picked.size>0&&(
         <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",padding:"7px 10px",marginBottom:8,background:t.accentBg,border:`1px solid ${t.accentBdr}`,borderRadius:6}}>
-          <span style={{fontSize:9,fontWeight:700,color:t.accent,fontFamily:"'Inter',system-ui,sans-serif"}}>Selected:</span>
+          <span style={{fontSize:9,fontWeight:700,color:t.accent,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>Selected:</span>
           {skus.filter(d=>picked.has(d.asin)).map(d=>(
-            <span key={d.asin} style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:10,color:t.text,background:t.surface,border:`1px solid ${t.border2}`,borderRadius:4,padding:"2px 7px",fontFamily:"'Inter',system-ui,sans-serif"}}>
+            <span key={d.asin} style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:10,color:t.text,background:t.surface,border:`1px solid ${t.border2}`,borderRadius:4,padding:"2px 7px",fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
               {d.finalName}
               <span style={{cursor:"pointer",color:t.text3}} onClick={()=>setPicked(prev=>{const nx=new Set(prev);nx.delete(d.asin);return nx;})}>✕</span>
             </span>
@@ -1608,7 +1608,7 @@ function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,s
             <td onClick={e=>togglePick(d.asin,e)}><input type="checkbox" checked={picked.has(d.asin)} onChange={()=>{}} style={{cursor:"pointer"}}/></td>
             <td style={{textAlign:"left"}}><div className="tn">{d.finalName}</div><div className="ta">{d.sellerSku}</div></td>
             <td style={{textAlign:"left"}} className="ta">{d.asin}</td>
-            <td><span style={{fontSize:10,color:trendColor(calcTrend(d.velocity.avg7,d.velocity.avg30),t),fontFamily:"'Inter',system-ui,sans-serif",whiteSpace:"nowrap"}}>{calcTrend(d.velocity.avg7,d.velocity.avg30)}</span></td>
+            <td><span style={{fontSize:10,color:trendColor(calcTrend(d.velocity.avg7,d.velocity.avg30),t),fontFamily:"'Instrument Sans',system-ui,sans-serif",whiteSpace:"nowrap"}}>{calcTrend(d.velocity.avg7,d.velocity.avg30)}</span></td>
             <td style={{fontWeight:700,color:hasPriorityDemand?t.accent:t.text}} title={hasPriorityDemand?`Priority Demand override active (weighted avg is ${fmt(d.velocity.demand,2)})`:undefined}>{fmt(displayDemand,2)}</td>
             <td>{fmt(d.currentStock)}</td><td>{fmt(d.fbaAvailable)}</td><td>{fmt(d.fcSellable)}</td>
             <td style={{color:extraInboundQty>0?t.accent:undefined,fontWeight:extraInboundQty>0?700:undefined}} title={extraInboundQty>0?`Includes +${fmt(extraInboundQty)} Add Inbound (file value is ${fmt(d.inbound)})`:undefined}>{fmt(displayInbound)}</td>
@@ -1718,12 +1718,12 @@ function FCView({data,settings,setSettings,onSku,t}){
         <span style={{color:t.text3}}>⌕</span>
         <input placeholder="FC code or city…" value={q} onChange={e=>setQ(e.target.value)}/>
       </div>
-      <select className="sel" value={fil} onChange={e=>setFil(e.target.value)}>
+      <Select className="sel" value={fil} onChange={e=>setFil(e.target.value)}>
         <option value="all">All Warehouses ({warehouses.length})</option>
         <option value="critical">Critical / Stockout ({critWH})</option>
         <option value="low">Low Stock ({lowWH})</option>
-      </select>
-      <span style={{marginLeft:"auto",fontSize:9,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif"}}>
+      </Select>
+      <span style={{marginLeft:"auto",fontSize:9,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
         {filtered.length} of {warehouses.length} warehouses
       </span>
     </div>
@@ -1751,7 +1751,7 @@ function FCView({data,settings,setSettings,onSku,t}){
               }}/>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:14,fontWeight:600,color:t.text,letterSpacing:"-.1px"}}>{wh.label}</div>
-                <div style={{fontSize:12,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif",marginTop:3}}>
+                <div style={{fontSize:12,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif",marginTop:3}}>
                   {wh.code}
                   &nbsp;·&nbsp;{wh.skus.length} SKU{wh.skus.length!==1?"s":""}
                   &nbsp;·&nbsp;<span style={{color:t.text2}}>{fmt(wh.totalStock)} sellable</span>
@@ -1803,7 +1803,7 @@ function FCView({data,settings,setSettings,onSku,t}){
                           <td>
                             <div style={{fontWeight:600,color:t.text,fontSize:12,
                               maxWidth:210,overflow:"hidden",textOverflow:"ellipsis"}}>{sku.name}</div>
-                            <div style={{fontSize:9,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif",marginTop:2}}>{sku.asin}</div>
+                            <div style={{fontSize:9,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif",marginTop:2}}>{sku.asin}</div>
                           </td>
                           <td style={{textAlign:"right",fontWeight:700,
                             color:sku.stock>0?t.text:t.red}}>{fmt(sku.stock)}</td>
@@ -1979,11 +1979,11 @@ function LISView({data, settings, setSettings, onSku, t}) {
           <span style={{color:t.text3}}>⌕</span>
           <input placeholder="SKU, ASIN or FC…" value={q} onChange={e=>setQ(e.target.value)}/>
         </div>
-        <select className="sel" value={filSt} onChange={e=>setFilSt(e.target.value)}>
+        <Select className="sel" value={filSt} onChange={e=>setFilSt(e.target.value)}>
           <option value="actionable">Critical + Low ({critCount+lowCount})</option>
           <option value="all">All ({rows.length})</option>
-        </select>
-        <span style={{marginLeft:"auto",fontSize:9,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif"}}>
+        </Select>
+        <span style={{marginLeft:"auto",fontSize:9,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
           {filtered.length} rows · click header to sort
         </span>
       </div>
@@ -2021,35 +2021,35 @@ function LISView({data, settings, setSettings, onSku, t}) {
                     onClick={()=>onSku(r.asin)}>
                     <td style={TD}>
                       <div style={{fontWeight:600,color:t.text,fontSize:12,maxWidth:220,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.name}</div>
-                      <div style={{fontSize:9,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif",marginTop:2}}>{r.asin}</div>
+                      <div style={{fontSize:9,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif",marginTop:2}}>{r.asin}</div>
                     </td>
                     <td style={TD}>
-                      <div style={{fontWeight:700,color:t.accent,fontSize:11,fontFamily:"'Inter',system-ui,sans-serif"}}>{r.fc}</div>
+                      <div style={{fontWeight:700,color:t.accent,fontSize:11,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{r.fc}</div>
                       <div style={{fontSize:9,color:t.text3,marginTop:2}}>{r.fcLabel}</div>
                     </td>
-                    <td style={{...TD,fontFamily:"'Inter',system-ui,sans-serif",color:t.text2}}>
+                    <td style={{...TD,fontFamily:"'Instrument Sans',system-ui,sans-serif",color:t.text2}}>
                       {r.demand>0?fmt(r.demand,2):<span style={{color:t.text3}}>—</span>}
                     </td>
-                    <td style={{...TD,fontFamily:"'Inter',system-ui,sans-serif",fontWeight:700,color:r.fcStock>0?t.text:t.red}}>
+                    <td style={{...TD,fontFamily:"'Instrument Sans',system-ui,sans-serif",fontWeight:700,color:r.fcStock>0?t.text:t.red}}>
                       {fmt(r.fcStock)}
                     </td>
                     <td style={TD}>
-                      <span style={{color:sc,fontWeight:700,fontFamily:"'Inter',system-ui,sans-serif"}}>
+                      <span style={{color:sc,fontWeight:700,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
                         {isFinite(r.doi)?fmt(r.doi,1)+"d":"∞"}
                       </span>
                     </td>
                     <td style={TD}>
-                      <span style={{color:tc,fontFamily:"'Inter',system-ui,sans-serif",fontSize:11,fontWeight:600,whiteSpace:"nowrap"}}>
+                      <span style={{color:tc,fontFamily:"'Instrument Sans',system-ui,sans-serif",fontSize:11,fontWeight:600,whiteSpace:"nowrap"}}>
                         {r.trend||"—"}
                       </span>
                     </td>
                     <td style={TD}>
-                      <span style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:12,fontWeight:500,color:sc,fontFamily:"'Inter',system-ui,sans-serif"}}>
+                      <span style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:12,fontWeight:500,color:sc,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
                         <span className="dot" style={{background:sc}}></span>{r.status}
                       </span>
                     </td>
                     <td style={TD}>
-                      <span style={{color:t.accent,fontFamily:"'Inter',system-ui,sans-serif",fontWeight:700,fontSize:12}}>
+                      <span style={{color:t.accent,fontFamily:"'Instrument Sans',system-ui,sans-serif",fontWeight:700,fontSize:12}}>
                         Send {fmt(r.sendQty)} units to {r.fc}
                       </span>
                     </td>
@@ -2062,7 +2062,7 @@ function LISView({data, settings, setSettings, onSku, t}) {
       )}
 
       <div style={{marginTop:10,padding:"7px 12px",background:t.surface2,border:`1px solid ${t.border}`,
-        borderRadius:6,fontSize:10,fontFamily:"'Inter',system-ui,sans-serif",color:t.text3,
+        borderRadius:6,fontSize:10,fontFamily:"'Instrument Sans',system-ui,sans-serif",color:t.text3,
         display:"flex",gap:20,flexWrap:"wrap"}}>
         <span>Cover target = FBA Cover Days slider · Same formula as SKU Detail send-stock</span>
         <span style={{marginLeft:"auto"}}>Click any row → SKU Detail</span>
@@ -2078,10 +2078,10 @@ function OrderQtyCell({qty, t}) {
   if (rounded <= 0) return (
     <span style={{
       display:"inline-flex",alignItems:"center",gap:5,fontSize:12,fontWeight:500,
-      color:t.purple,fontFamily:"'Inter',system-ui,sans-serif",
+      color:t.purple,fontFamily:"'Instrument Sans',system-ui,sans-serif",
     }}><span className="dot p"></span>{fmt(Math.abs(rounded))} surplus</span>
   );
-  return <span style={{color:t.accent,fontWeight:700,fontFamily:"'Inter',system-ui,sans-serif"}}>{fmt(rounded)}</span>;
+  return <span style={{color:t.accent,fontWeight:700,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{fmt(rounded)}</span>;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -2259,7 +2259,7 @@ function ProcurementForecast({data, ltData, anchorDate, openPoMap, settings, t})
       {/* Page header */}
       <div style={{marginBottom:14}}>
         <div style={{fontSize:20,fontWeight:700,color:t.text,marginBottom:4}}>Procurement Forecast</div>
-        <div style={{fontSize:10,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif"}}>
+        <div style={{fontSize:10,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
           WF ADS = (30d×0.2)+(14d×0.3)+(7d×0.5) · Sea = priority mode · Air = gap-fill only · Open POs auto-deducted from SEA rec · Safety stock included in SEA target
         </div>
       </div>
@@ -2295,14 +2295,14 @@ function ProcurementForecast({data, ltData, anchorDate, openPoMap, settings, t})
           <span style={{color:t.text3}}>⌕</span>
           <input placeholder="Name, ASIN…" value={q} onChange={e=>setQ(e.target.value)}/>
         </div>
-        <select className="sel" value={fil} onChange={e=>setFil(e.target.value)}>
+        <Select className="sel" value={fil} onChange={e=>setFil(e.target.value)}>
           <option value="all">All SKUs</option>
           <option value="critical">🔴 Critical Only</option>
           <option value="urgent">🟠 Urgent (Critical + Gap)</option>
           <option value="soon">🟡 Order Soon</option>
           <option value="has_lt">Has Leadtime Data</option>
-        </select>
-        <span style={{marginLeft:"auto",fontSize:9,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif"}}>{filtered.length} / {skus.length} SKUs</span>
+        </Select>
+        <span style={{marginLeft:"auto",fontSize:9,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{filtered.length} / {skus.length} SKUs</span>
       </div>
 
       {/* Main table */}
@@ -2355,16 +2355,16 @@ function ProcurementForecast({data, ltData, anchorDate, openPoMap, settings, t})
                     {/* SKU */}
                     <td style={{...TD,borderRight:`1px solid ${t.border2}`}}>
                       <div style={{fontWeight:600,color:t.text,fontSize:12,maxWidth:165,overflow:"hidden",textOverflow:"ellipsis"}}>{d.finalName}</div>
-                      <div style={{fontSize:9,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif",marginTop:2}}>{d.asin}</div>
+                      <div style={{fontSize:9,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif",marginTop:2}}>{d.asin}</div>
                     </td>
                     {/* WF ADS */}
                     <td style={TD}>
-                      <span style={{fontWeight:700,fontFamily:"'Inter',system-ui,sans-serif",color:t.text}}>{fmt(d.wfAds,2)}</span>
+                      <span style={{fontWeight:700,fontFamily:"'Instrument Sans',system-ui,sans-serif",color:t.text}}>{fmt(d.wfAds,2)}</span>
                       <span style={{fontSize:9,color:t.text3,marginLeft:3}}>u/d</span>
                     </td>
                     {/* Trend */}
                     <td style={TD}>
-                      <span style={{fontSize:10,color:trendColor(d.trend,t),fontFamily:"'Inter',system-ui,sans-serif"}}>{d.trend}</span>
+                      <span style={{fontSize:10,color:trendColor(d.trend,t),fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{d.trend}</span>
                     </td>
 
                     {/* Inventory group */}
@@ -2388,7 +2388,7 @@ function ProcurementForecast({data, ltData, anchorDate, openPoMap, settings, t})
                             width:70,padding:"3px 6px",
                             background:t.surface,border:`1px solid ${t.accent}`,
                             borderRadius:4,color:t.text,fontSize:12,
-                            fontFamily:"'Inter',system-ui,sans-serif",outline:"none",
+                            fontFamily:"'Instrument Sans',system-ui,sans-serif",outline:"none",
                           }}
                         />
                       ) : (
@@ -2398,21 +2398,21 @@ function ProcurementForecast({data, ltData, anchorDate, openPoMap, settings, t})
                           background: d.upcomingQty > 0 ? t.accentBg : t.surface2,
                           border: `1px solid ${d.upcomingQty > 0 ? t.accentBdr : t.border}`,
                           color: d.upcomingQty > 0 ? t.accent : t.text3,
-                          fontFamily:"'Inter',system-ui,sans-serif",fontSize:11,
+                          fontFamily:"'Instrument Sans',system-ui,sans-serif",fontSize:11,
                         }}>
                           {fmt(d.upcomingQty)}<span style={{fontSize:8,opacity:.5}}>✎</span>
                         </span>
                       )}
                     </td>
                     {/* Total Inv */}
-                    <td style={{...TD,background:t.accentBg,fontWeight:700,color:t.text,fontFamily:"'Inter',system-ui,sans-serif"}}>
+                    <td style={{...TD,background:t.accentBg,fontWeight:700,color:t.text,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
                       {fmt(d.totalInv)}
                     </td>
 
                     {/* Days in Hand */}
                     <td style={TD}>
                       <span style={{
-                        fontWeight:700,fontFamily:"'Inter',system-ui,sans-serif",
+                        fontWeight:700,fontFamily:"'Instrument Sans',system-ui,sans-serif",
                         color: !isFinite(d.doh) ? t.green
                              : d.doh < 30 ? t.red
                              : d.doh < 60 ? t.yellow : t.green,
@@ -2422,7 +2422,7 @@ function ProcurementForecast({data, ltData, anchorDate, openPoMap, settings, t})
                     </td>
                     {/* Est. Stockout */}
                     <td style={TD}>
-                      <span style={{fontSize:11,color:d.stockoutDate?t.text2:t.text3,fontFamily:"'Inter',system-ui,sans-serif"}}>
+                      <span style={{fontSize:11,color:d.stockoutDate?t.text2:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
                         {d.stockoutDate ? fmtDate(d.stockoutDate) : "—"}
                       </span>
                     </td>
@@ -2430,7 +2430,7 @@ function ProcurementForecast({data, ltData, anchorDate, openPoMap, settings, t})
                     {/* AIR group */}
                     <td style={{...TD,background:t.orangeBg}}>
                       {d.airTotal !== null
-                        ? <span style={{color:t.orange,fontFamily:"'Inter',system-ui,sans-serif",fontWeight:600}}>{d.airTotal}d</span>
+                        ? <span style={{color:t.orange,fontFamily:"'Instrument Sans',system-ui,sans-serif",fontWeight:600}}>{d.airTotal}d</span>
                         : <span style={{color:t.text3}}>—</span>}
                     </td>
                     <td style={{...TD,background:t.orangeBg}}>
@@ -2438,14 +2438,14 @@ function ProcurementForecast({data, ltData, anchorDate, openPoMap, settings, t})
                     </td>
                     <td style={{...TD,background:t.orangeBg}}>
                       {d.airArrivalDate
-                        ? <span style={{fontSize:11,color:t.orange,fontFamily:"'Inter',system-ui,sans-serif"}}>{fmtDate(d.airArrivalDate)}</span>
+                        ? <span style={{fontSize:11,color:t.orange,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{fmtDate(d.airArrivalDate)}</span>
                         : <span style={{color:t.text3}}>—</span>}
                     </td>
 
                     {/* SEA group */}
                     <td style={{...TD,background:t.greenBg}}>
                       {d.seaTotal !== null
-                        ? <span style={{color:t.green,fontFamily:"'Inter',system-ui,sans-serif",fontWeight:600}}>{d.seaTotal}d</span>
+                        ? <span style={{color:t.green,fontFamily:"'Instrument Sans',system-ui,sans-serif",fontWeight:600}}>{d.seaTotal}d</span>
                         : <span style={{color:t.text3}}>—</span>}
                     </td>
                     {/* Open POs */}
@@ -2454,9 +2454,9 @@ function ProcurementForecast({data, ltData, anchorDate, openPoMap, settings, t})
                         ? <span style={{
                             display:"inline-block",padding:"2px 8px",borderRadius:4,
                             background:t.accentBg,border:`1px solid ${t.accentBdr}`,
-                            color:t.accent,fontFamily:"'Inter',system-ui,sans-serif",fontWeight:700,fontSize:11,
+                            color:t.accent,fontFamily:"'Instrument Sans',system-ui,sans-serif",fontWeight:700,fontSize:11,
                           }}>{fmt(d.openPoQty)}</span>
-                        : <span style={{color:t.text3,fontFamily:"'Inter',system-ui,sans-serif"}}>—</span>}
+                        : <span style={{color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>—</span>}
                     </td>
                     <td style={{...TD,background:t.greenBg}}>
                       <OrderQtyCell qty={d.orderSea} t={t}/>
@@ -2464,14 +2464,14 @@ function ProcurementForecast({data, ltData, anchorDate, openPoMap, settings, t})
                     {/* SEA Arrival */}
                     <td style={{...TD,background:t.greenBg}}>
                       {d.seaArrivalDate
-                        ? <span style={{fontSize:11,color:t.green,fontFamily:"'Inter',system-ui,sans-serif"}}>{fmtDate(d.seaArrivalDate)}</span>
+                        ? <span style={{fontSize:11,color:t.green,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{fmtDate(d.seaArrivalDate)}</span>
                         : <span style={{color:t.text3}}>—</span>}
                     </td>
                     {/* Reorder by (SEA) — last safe date */}
                     <td style={{...TD,background:t.greenBg}}>
                       {d.reorderSeaDate ? (
                         <span style={{
-                          fontSize:11,fontFamily:"'Inter',system-ui,sans-serif",fontWeight:reorderPast?700:400,
+                          fontSize:11,fontFamily:"'Instrument Sans',system-ui,sans-serif",fontWeight:reorderPast?700:400,
                           color: reorderPast ? t.red : reorderSoon ? t.yellow : t.green,
                         }}>
                           {reorderPast && "⚠ "}{fmtDate(d.reorderSeaDate)}
@@ -2501,7 +2501,7 @@ function ProcurementForecast({data, ltData, anchorDate, openPoMap, settings, t})
         <div style={{
           marginTop:8,padding:"8px 12px",background:t.surface,border:`1px solid ${t.border}`,
           borderRadius:8,display:"flex",gap:20,flexWrap:"wrap",alignItems:"center",
-          fontSize:10,fontFamily:"'Inter',system-ui,sans-serif",
+          fontSize:10,fontFamily:"'Instrument Sans',system-ui,sans-serif",
         }}>
           <span style={{fontWeight:600,color:t.text3}}>Totals ({filtered.length} SKUs)</span>
           <span style={{color:t.text2}}>FBA: <strong style={{color:t.text}}>{fmt(filtered.reduce((s,d)=>s+d.fba,0))}</strong></span>
@@ -2515,7 +2515,7 @@ function ProcurementForecast({data, ltData, anchorDate, openPoMap, settings, t})
       )}
 
       {/* Legend */}
-      <div style={{marginTop:8,display:"flex",gap:14,flexWrap:"wrap",fontSize:9,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif"}}>
+      <div style={{marginTop:8,display:"flex",gap:14,flexWrap:"wrap",fontSize:9,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
         <span>🔴 DOH &lt; AIR lead time — order air now</span>
         <span>🟠 DOH &lt; SEA lead time — need SEA + gap air</span>
         <span>🟡 DOH &lt; SEA × 1.3 — place SEA soon</span>
@@ -2546,7 +2546,7 @@ function WarningsPage({warnings,t}){
         <tbody>{unmapped.map((w,i)=>(
           <tr key={i}>
             <td><span className={`badge ${w.type.includes("inv")?"bb":"bgr"}`}><span className={`dot ${w.type.includes("inv")?"b":"gr"}`}></span>{w.type.includes("inv")?"Inventory":"Orders"}</span></td>
-            <td style={{color:t.red,fontFamily:"'Inter',system-ui,sans-serif",fontSize:11}}>{w.asin}</td>
+            <td style={{color:t.red,fontFamily:"'Instrument Sans',system-ui,sans-serif",fontSize:11}}>{w.asin}</td>
             <td style={{color:t.text3,fontSize:10}}>{w.context||"—"}</td>
             <td style={{fontSize:10,color:t.text3}}>{w.row||"—"}</td>
           </tr>
@@ -2560,9 +2560,9 @@ function WarningsPage({warnings,t}){
         <thead><tr><th>ASIN</th><th>SKU in File</th><th>Expected</th></tr></thead>
         <tbody>{mismatch.map((w,i)=>(
           <tr key={i}>
-            <td style={{fontFamily:"'Inter',system-ui,sans-serif",fontSize:11}}>{w.asin}</td>
-            <td style={{color:t.red,fontSize:11,fontFamily:"'Inter',system-ui,sans-serif"}}>{w.csvSku}</td>
-            <td style={{color:t.green,fontSize:11,fontFamily:"'Inter',system-ui,sans-serif"}}>{w.mapSku}</td>
+            <td style={{fontFamily:"'Instrument Sans',system-ui,sans-serif",fontSize:11}}>{w.asin}</td>
+            <td style={{color:t.red,fontSize:11,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{w.csvSku}</td>
+            <td style={{color:t.green,fontSize:11,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{w.mapSku}</td>
           </tr>
         ))}</tbody>
       </table></div>
@@ -2587,7 +2587,7 @@ function TopCities({ citySales, t }) {
 
   if (!citySales || Object.keys(citySales).length === 0) {
     return (
-      <div style={{padding:"14px 0",textAlign:"center",fontSize:11,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif"}}>
+      <div style={{padding:"14px 0",textAlign:"center",fontSize:11,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
         No city data — ship-city column not found in orders CSV
       </div>
     );
@@ -2647,7 +2647,7 @@ function TopCities({ citySales, t }) {
         <div style={{
           width:20, textAlign:"right", fontSize:9, flexShrink:0,
           color: isOther ? t.text3 : rank<3 ? t.accent : t.text3,
-          fontFamily:"'Inter',system-ui,sans-serif",
+          fontFamily:"'Instrument Sans',system-ui,sans-serif",
         }}>
           {isOther ? "·" : `${rank+1}`}
         </div>
@@ -2659,7 +2659,7 @@ function TopCities({ citySales, t }) {
             color: isOther ? t.text3 : t.text,
             whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
           }}>{row.city}</div>
-          <div style={{fontSize:9,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif"}}>{row.stateLabel}</div>
+          <div style={{fontSize:9,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{row.stateLabel}</div>
         </div>
 
         {/* Bar */}
@@ -2673,7 +2673,7 @@ function TopCities({ citySales, t }) {
 
         {/* Units + % */}
         <div style={{width:70,textAlign:"right",flexShrink:0}}>
-          <span style={{fontSize:11,fontWeight:700,fontFamily:"'Inter',system-ui,sans-serif",color:isOther?t.text3:t.text}}>{fmt(row.qty)}</span>
+          <span style={{fontSize:11,fontWeight:700,fontFamily:"'Instrument Sans',system-ui,sans-serif",color:isOther?t.text3:t.text}}>{fmt(row.qty)}</span>
           <span style={{fontSize:9,color:t.text3,marginLeft:4}}>{pct.toFixed(1)}%</span>
         </div>
       </div>
@@ -2683,7 +2683,7 @@ function TopCities({ citySales, t }) {
   return (
     <div>
       {/* Legend */}
-      <div style={{fontSize:9,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif",marginBottom:10}}>
+      <div style={{fontSize:9,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif",marginBottom:10}}>
         Top {top.length} (cities and state groups, ranked together) · {hasRest ? `${otherRows.length} more collapsed below · ` : ""}total {fmt(totalQty)} units
       </div>
 
@@ -2808,7 +2808,7 @@ function JumpNav({sections, stickyHeaderRef, t}){
         width: open ? 250 : 0, maxHeight:"70vh", overflow:"hidden",
         background:t.surface, border: open ? `1px solid ${t.border}` : "none", borderRight:"none",
         borderRadius:"12px 0 0 12px", boxShadow: open ? "0 8px 24px rgba(0,0,0,.22)" : "none",
-        transition:"width .16s ease", fontFamily:"'Inter',system-ui,sans-serif",
+        transition:"width .16s ease", fontFamily:"'Instrument Sans',system-ui,sans-serif",
       }}>
         <div style={{width:250, maxHeight:"70vh", overflowY:"auto", padding:6}}>
           <div style={{fontSize:10,color:t.text3,fontWeight:700,textTransform:"uppercase",letterSpacing:".4px",padding:"6px 10px 4px"}}>
@@ -3073,7 +3073,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
             style={{width:"100%"}}
           />
         </div>
-        <div style={{display:"flex",gap:10,alignItems:"center",fontSize:11,fontFamily:"'Inter',system-ui,sans-serif",flexWrap:"wrap"}}>
+        <div style={{display:"flex",gap:10,alignItems:"center",fontSize:11,fontFamily:"'Instrument Sans',system-ui,sans-serif",flexWrap:"wrap"}}>
           <span>
             🚢 Sea: <span style={{color:t.green,fontWeight:700}}>{seaLTBase != null ? seaLTBase : "—"}d</span>
             {seaLTBase != null && <span style={{color:t.text3,fontSize:9}}> (file)</span>}
@@ -3100,7 +3100,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
       <div>
         <div style={{fontSize:16,fontWeight:700,color:t.text,marginBottom:2}}>{sku.finalName}</div>
-        <div style={{fontSize:10,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif"}}>{sku.sellerSku} · {sku.asin}</div>
+        <div style={{fontSize:10,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{sku.sellerSku} · {sku.asin}</div>
       </div>
       <div style={{marginLeft:"auto",display:"flex",gap:8,alignItems:"center"}}>
         <PBadge action={pl.action} priority={pl.priority} purchasePct={pl.purchasePct||0} replenishPct={pl.replenishPct||0} t={t}/>
@@ -3109,7 +3109,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
 
     {/* KPI row */}
     {poIncluded&&(
-      <div style={{fontSize:9,color:t.accent,marginBottom:6,fontFamily:"'Inter',system-ui,sans-serif"}}>
+      <div style={{fontSize:9,color:t.accent,marginBottom:6,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
         ⓘ Including {fmt(pl.poStockQty)} PO units in stock for the figures below (forecast-only — purchase/replenish qty unaffected)
       </div>
     )}
@@ -3178,12 +3178,12 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
         <div className="card" id="sec-active-pos" style={{marginBottom:10}}>
           <div className="ch">Active Purchase Orders</div>
           {poRows.length === 0 ? (
-            <div style={{fontSize:11,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif",padding:"6px 0"}}>
+            <div style={{fontSize:11,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif",padding:"6px 0"}}>
               No active POs for this SKU
             </div>
           ) : (
             <>
-              <div style={{fontSize:9,color:t.text3,marginBottom:6,fontFamily:"'Inter',system-ui,sans-serif"}}>
+              <div style={{fontSize:9,color:t.text3,marginBottom:6,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
                 {poGateOn
                   ? "Uncheck a PO to exclude it from purchase/replenishment/DOI/stockout calculations everywhere in the app."
                   : <>Enable <strong style={{color:t.text2}}>Include PO (forecast)</strong> above to fold these into calculations — per-PO checkboxes are inactive until then.</>}
@@ -3219,18 +3219,18 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
                               title={!poGateOn?"Enable 'Include PO (forecast)' to use this":(pr.included?"Included in calculations":"Excluded from calculations")}
                               style={{cursor:poGateOn?"pointer":"not-allowed"}}/>
                           </td>
-                          <td style={{padding:"7px 10px",fontSize:11,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif",textAlign:"left"}}>{poDate||"—"}</td>
-                          <td style={{padding:"7px 10px",fontSize:11,fontFamily:"'Inter',system-ui,sans-serif",color:t.text,fontWeight:600,textAlign:"left"}}>{poNo}</td>
+                          <td style={{padding:"7px 10px",fontSize:11,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif",textAlign:"left"}}>{poDate||"—"}</td>
+                          <td style={{padding:"7px 10px",fontSize:11,fontFamily:"'Instrument Sans',system-ui,sans-serif",color:t.text,fontWeight:600,textAlign:"left"}}>{poNo}</td>
                           <td style={{padding:"7px 10px",textAlign:"left"}}>
                             <span style={{
                               display:"inline-block",padding:"3px 9px",borderRadius:5,fontSize:11,
                               fontWeight:600,background:sc+"22",color:sc,
-                              border:`1px solid ${sc}44`,fontFamily:"'Inter',system-ui,sans-serif",whiteSpace:"nowrap",
+                              border:`1px solid ${sc}44`,fontFamily:"'Instrument Sans',system-ui,sans-serif",whiteSpace:"nowrap",
                             }}>{st||"—"}</span>
                           </td>
-                          <td style={{padding:"7px 10px",fontFamily:"'Inter',system-ui,sans-serif",fontSize:12,fontWeight:700,color:t.accent,textAlign:"left"}}>{qty>0?fmt(qty):"—"}</td>
-                          <td style={{padding:"7px 10px",fontSize:11,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif",textAlign:"left"}}>{comp||"—"}</td>
-                          <td style={{padding:"7px 10px",fontSize:11,fontFamily:"'Inter',system-ui,sans-serif",color:eta?t.green:t.text3,fontWeight:eta?600:400,textAlign:"left"}}>{eta||"—"}</td>
+                          <td style={{padding:"7px 10px",fontFamily:"'Instrument Sans',system-ui,sans-serif",fontSize:12,fontWeight:700,color:t.accent,textAlign:"left"}}>{qty>0?fmt(qty):"—"}</td>
+                          <td style={{padding:"7px 10px",fontSize:11,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif",textAlign:"left"}}>{comp||"—"}</td>
+                          <td style={{padding:"7px 10px",fontSize:11,fontFamily:"'Instrument Sans',system-ui,sans-serif",color:eta?t.green:t.text3,fontWeight:eta?600:400,textAlign:"left"}}>{eta||"—"}</td>
                         </tr>
                       );
                     })}
@@ -3240,7 +3240,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
               <div style={{
                 padding:"7px 12px",background:poGateOn?t.accentBg:t.surface2,border:`1px solid ${poGateOn?t.accentBdr:t.border}`,
                 borderRadius:6,display:"flex",alignItems:"center",justifyContent:"space-between",
-                fontSize:11,fontFamily:"'Inter',system-ui,sans-serif",opacity:poGateOn?1:.6,
+                fontSize:11,fontFamily:"'Instrument Sans',system-ui,sans-serif",opacity:poGateOn?1:.6,
               }}>
                 <span style={{color:t.text3,fontSize:9,textTransform:"uppercase",letterSpacing:".5px"}}>
                   Total Open PO Qty ({poRows.filter(p=>p.included).length}/{poRows.length} PO{poRows.length!==1?"s":""} included){!poGateOn&&" — not applied"}
@@ -3257,24 +3257,24 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
     <div className="card" id="sec-shipment-plan" style={{marginBottom:10}}>
       <div className="ch">Shipment Plan</div>
       {demand === 0 ? (
-        <div style={{fontSize:11,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif",padding:"6px 0"}}>No demand — not applicable</div>
+        <div style={{fontSize:11,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif",padding:"6px 0"}}>No demand — not applicable</div>
       ) : (
         <div>
           {/* Single status line */}
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
             <span style={{width:8,height:8,borderRadius:"50%",background:shipStatusColor(shipStatusTier),display:"inline-block",flexShrink:0}}></span>
-            <span style={{fontSize:14,fontWeight:700,color:shipStatusColor(shipStatusTier),fontFamily:"'Inter',system-ui,sans-serif"}}>{shipStatusLabel}</span>
+            <span style={{fontSize:14,fontWeight:700,color:shipStatusColor(shipStatusTier),fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{shipStatusLabel}</span>
           </div>
 
           <div style={{display:"grid",gridTemplateColumns:hasAir?"1fr 1fr":"1fr",gap:10,marginBottom:10}}>
             {hasAir && (
               <div style={{padding:"12px 14px",borderRadius:8,background:t.surface2,border:`1px solid ${t.border}`}}>
                 <div style={{fontSize:12,color:t.text3,marginBottom:6}}>✈ Air — bridge the gap</div>
-                <div style={{fontSize:20,fontWeight:800,fontFamily:"'Inter',system-ui,sans-serif",color:shipOrderAir>0?t.accent:t.text3}}>
+                <div style={{fontSize:20,fontWeight:800,fontFamily:"'Instrument Sans',system-ui,sans-serif",color:shipOrderAir>0?t.accent:t.text3}}>
                   {shipOrderAir>0?fmt(shipOrderAir)+" units":"Not needed"}
                 </div>
                 {shipAirArrivalDate && shipOrderAir>0 && (
-                  <div style={{fontSize:10,color:t.text3,marginTop:4,fontFamily:"'Inter',system-ui,sans-serif"}}>
+                  <div style={{fontSize:10,color:t.text3,marginTop:4,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
                     Arrives {fmtDate(shipAirArrivalDate)}
                   </div>
                 )}
@@ -3282,10 +3282,10 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
             )}
             <div style={{padding:"12px 14px",borderRadius:8,background:t.surface2,border:`1px solid ${t.border}`}}>
               <div style={{fontSize:12,color:t.text3,marginBottom:6}}>🚢 Sea — full cycle target</div>
-              <div style={{fontSize:20,fontWeight:800,fontFamily:"'Inter',system-ui,sans-serif",color:t.text}}>
+              <div style={{fontSize:20,fontWeight:800,fontFamily:"'Instrument Sans',system-ui,sans-serif",color:t.text}}>
                 {fmt(shipOrderSea)} units
               </div>
-              <div style={{fontSize:10,color:t.text3,marginTop:4,fontFamily:"'Inter',system-ui,sans-serif"}}>
+              <div style={{fontSize:10,color:t.text3,marginTop:4,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
                 Arrives {fmtDate(shipSeaArrivalDate)}
               </div>
             </div>
@@ -3295,7 +3295,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
           {shipReorderDate && (
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",borderTop:`1px solid ${t.border}`,paddingTop:10,fontSize:11}}>
               <span style={{color:t.text3}}>Reorder by (sea)</span>
-              <span style={{fontWeight:600,color:shipReorderPast?t.red:shipReorderSoon?t.yellow:t.green,fontFamily:"'Inter',system-ui,sans-serif"}}>
+              <span style={{fontWeight:600,color:shipReorderPast?t.red:shipReorderSoon?t.yellow:t.green,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
                 {shipReorderPast&&"⚠ "}{fmtDate(shipReorderDate)}{shipReorderPast?" — past due":""}
               </span>
             </div>
@@ -3303,7 +3303,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
 
           {/* No LT data nudge */}
           {effectiveLT === 0 && !hasAir && (
-            <div style={{marginTop:8,fontSize:10,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif"}}>
+            <div style={{marginTop:8,fontSize:10,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
               Upload Leadtime CSV to enable air/sea calculations.
             </div>
           )}
@@ -3348,7 +3348,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
           onChange={e=>setPoUnits(sku.asin, e.target.value)}
           style={{width:80,background:"transparent",border:`1px solid ${t.border}`,
             borderRadius:4,color:t.green,padding:"3px 7px",fontSize:13,
-            textAlign:"right",outline:"none",fontFamily:"'Inter',system-ui,sans-serif",fontWeight:700}}
+            textAlign:"right",outline:"none",fontFamily:"'Instrument Sans',system-ui,sans-serif",fontWeight:700}}
         />
         {currentPoUnits>0&&(
           <button onClick={()=>setPoUnits(sku.asin,"")} title="Reset to 0"
@@ -3357,7 +3357,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
           </button>
         )}
         {currentPoUnits>0&&!poGateOn&&<span style={{fontSize:10,color:t.text3}}>Include PO (forecast) is off — no effect</span>}
-        <span style={{marginLeft:"auto",fontSize:13,fontWeight:700,fontFamily:"'Inter',system-ui,sans-serif",color:localSuggestedPurchase>0?t.accent:t.green}}>
+        <span style={{marginLeft:"auto",fontSize:13,fontWeight:700,fontFamily:"'Instrument Sans',system-ui,sans-serif",color:localSuggestedPurchase>0?t.accent:t.green}}>
           Still need: {localSuggestedPurchase>0?fmt(localSuggestedPurchase)+" units":"✓ Covered"}
         </span>
       </div>
@@ -3380,7 +3380,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
           }}
           style={{width:80,background:"transparent",border:`1px solid ${t.border}`,
             borderRadius:4,color:t.accent,padding:"3px 7px",fontSize:13,
-            textAlign:"right",outline:"none",fontFamily:"'Inter',system-ui,sans-serif",fontWeight:700}}
+            textAlign:"right",outline:"none",fontFamily:"'Instrument Sans',system-ui,sans-serif",fontWeight:700}}
         />
         {sku.priorityDemand>0&&(
           <button onClick={()=>{const cur=skuCfg?.[sku.asin]||{active:true};const next={...cur};delete next.priorityDemand;setSkuCfg({...skuCfg,[sku.asin]:next});}}
@@ -3408,7 +3408,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
           onChange={e=>setExtraInbound(sku.asin, e.target.value)}
           style={{width:80,background:"transparent",border:`1px solid ${t.border}`,
             borderRadius:4,color:t.accent,padding:"3px 7px",fontSize:13,
-            textAlign:"right",outline:"none",fontFamily:"'Inter',system-ui,sans-serif",fontWeight:700}}
+            textAlign:"right",outline:"none",fontFamily:"'Instrument Sans',system-ui,sans-serif",fontWeight:700}}
         />
         {(extraInbound?.[sku.asin]??0)>0&&(
           <button onClick={()=>setExtraInbound(sku.asin,"")} title="Reset to 0"
@@ -3428,7 +3428,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
         <div style={{
           marginTop:8,padding:"9px 12px",borderRadius:7,fontSize:11,
           background:t.surface2,border:`1px solid ${t.border}`,color:t.text3,
-          fontFamily:"'Inter',system-ui,sans-serif",
+          fontFamily:"'Instrument Sans',system-ui,sans-serif",
         }}>
           {fmt(totalOpenPoQty)} units across {skuPoRows.filter(p=>p.included).length} open PO{skuPoRows.filter(p=>p.included).length!==1?"s":""} in the sheet — not applied. Enable <strong style={{color:t.text2}}>Include PO (forecast)</strong> above to fold them in.
         </div>
@@ -3438,7 +3438,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
           marginTop:8,padding:"9px 12px",borderRadius:7,fontSize:11,
           background: fullyCoveredByPos ? t.green+"18" : t.accent+"14",
           border:`1px solid ${fullyCoveredByPos ? t.green+"44" : t.accent+"44"}`,
-          fontFamily:"'Inter',system-ui,sans-serif",
+          fontFamily:"'Instrument Sans',system-ui,sans-serif",
         }}>
           {fullyCoveredByPos ? (
             <span style={{color:t.green,fontWeight:700}}>
@@ -3488,7 +3488,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
                     width:58,background:"transparent",border:`1px solid ${t.border}`,
                     borderRadius:4,color:t.accent,padding:"2px 5px",
                     fontSize:11,textAlign:"right",outline:"none",
-                    fontFamily:"'Inter',system-ui,sans-serif",
+                    fontFamily:"'Instrument Sans',system-ui,sans-serif",
                   }}
                 />
               </td>
@@ -3507,8 +3507,8 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
             <span className="badge" style={{background:`${FC_STATUS_COLOR[r.status]}18`,color:FC_STATUS_COLOR[r.status],border:`1px solid ${FC_STATUS_COLOR[r.status]}40`}}>{r.status.toUpperCase()}</span>
             <span style={{flex:1,color:t.text}}>{r.label}</span>
             <span style={{color:t.text3}}>DOI: {isFinite(r.doi)?fmt(r.doi,1)+"d":"∞"}</span>
-            {inboundOffset>0&&<span style={{color:t.text3,fontSize:10,fontFamily:"'Inter',system-ui,sans-serif"}}>−{fmt(inboundOffset)} inbound</span>}
-            <span style={{color:finalNeeded>0?t.accent:t.green,fontWeight:700,fontFamily:"'Inter',system-ui,sans-serif"}}>
+            {inboundOffset>0&&<span style={{color:t.text3,fontSize:10,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>−{fmt(inboundOffset)} inbound</span>}
+            <span style={{color:finalNeeded>0?t.accent:t.green,fontWeight:700,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
               {finalNeeded>0?`Send: ${fmt(finalNeeded)} units`:"✓ Covered"}
             </span>
           </div>
@@ -3523,7 +3523,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
       <div className="card" id="sec-fba-replenishment" style={{marginBottom:10}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,flexWrap:"wrap",gap:8}}>
           <div className="ch" style={{marginBottom:0}}>FBA Replenishment Recommendation</div>
-          <div style={{display:"flex",gap:4,fontSize:10,fontFamily:"'Inter',system-ui,sans-serif"}}>
+          <div style={{display:"flex",gap:4,fontSize:10,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
             <span style={{color:t.text3,alignSelf:"center",marginRight:2}}>Sort by</span>
             {[["recommendation","Recommendation"],["demand","Demand"]].map(([key,label])=>(
               <button key={key} onClick={()=>setClusterSortBy(key)} style={{
@@ -3531,7 +3531,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
                 background:clusterSortBy===key?t.accent:t.surface2,
                 color:clusterSortBy===key?"#fff":t.text3,
                 border:`1px solid ${clusterSortBy===key?t.accent:t.border}`,
-                fontFamily:"'Inter',system-ui,sans-serif",
+                fontFamily:"'Instrument Sans',system-ui,sans-serif",
               }}>{label}</button>
             ))}
           </div>
@@ -3539,10 +3539,10 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
         {sortedClusterRows.map(r=>(
           <div key={r.clusterKey} style={{padding:"10px 12px",background:t.surface2,borderRadius:7,border:`1px solid ${t.border}`,marginBottom:8,fontSize:11}}>
             <div style={{color:t.text,fontWeight:600,marginBottom:2}}>{r.label}</div>
-            <div style={{fontSize:11,color:t.text2,fontFamily:"'Inter',system-ui,sans-serif",marginBottom:2}}>
+            <div style={{fontSize:11,color:t.text2,fontFamily:"'Instrument Sans',system-ui,sans-serif",marginBottom:2}}>
               covers {r.statesCovered.map(stateCodeToName).join(", ")}
             </div>
-            <div style={{fontSize:11,fontWeight:600,color:t.accent,fontFamily:"'Inter',system-ui,sans-serif",marginBottom:6}}>
+            <div style={{fontSize:11,fontWeight:600,color:t.accent,fontFamily:"'Instrument Sans',system-ui,sans-serif",marginBottom:6}}>
               {r.pctOfDemand.toFixed(1)}% of this SKU's demand · {fmt(r.dailyDemand,2)} units/day
             </div>
             <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8}}>
@@ -3550,18 +3550,18 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
                 <span key={fc} style={{
                   fontSize:9,fontWeight:700,padding:"1px 6px",borderRadius:4,
                   background:t.accentBg,color:t.accent,border:`1px solid ${t.accentBdr}`,
-                  fontFamily:"'Inter',system-ui,sans-serif",
+                  fontFamily:"'Instrument Sans',system-ui,sans-serif",
                 }}>{fc}</span>
               ))}
             </div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
               <div>
                 <div style={{fontSize:9,color:t.text3,textTransform:"uppercase",letterSpacing:".3px",marginBottom:3}} title="Units already in this cluster's FCs, from the Ledger">Current stock</div>
-                <div style={{fontSize:14,fontWeight:700,color:t.text,fontFamily:"'Inter',system-ui,sans-serif"}}>{fmt(r.currentStock)}</div>
+                <div style={{fontSize:14,fontWeight:700,color:t.text,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{fmt(r.currentStock)}</div>
               </div>
               <div>
                 <div style={{fontSize:9,color:t.text3,textTransform:"uppercase",letterSpacing:".3px",marginBottom:3}} title="Target = demand here × FBA Cover Days">Target stock</div>
-                <div style={{fontSize:14,fontWeight:700,color:t.text,fontFamily:"'Inter',system-ui,sans-serif"}}>{fmt(r.target)}</div>
+                <div style={{fontSize:14,fontWeight:700,color:t.text,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{fmt(r.target)}</div>
               </div>
               <div>
                 <div style={{fontSize:9,color:t.text3,textTransform:"uppercase",letterSpacing:".3px",marginBottom:3}} title="Optional: note units already on the way that aren't reflected in Current Stock yet">Already inbound</div>
@@ -3574,13 +3574,13 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
                     width:"100%",background:"transparent",border:`1px solid ${t.border}`,
                     borderRadius:4,color:t.accent,padding:"3px 6px",
                     fontSize:13,fontWeight:700,textAlign:"left",outline:"none",
-                    fontFamily:"'Inter',system-ui,sans-serif",
+                    fontFamily:"'Instrument Sans',system-ui,sans-serif",
                   }}
                 />
               </div>
               <div>
                 <div style={{fontSize:9,color:t.text3,textTransform:"uppercase",letterSpacing:".3px",marginBottom:3}} title="Target − Current Stock − Already Inbound">Recommended send</div>
-                <div style={{fontSize:14,fontWeight:700,fontFamily:"'Inter',system-ui,sans-serif",color:r.needed>0?t.accent:t.green}}>
+                <div style={{fontSize:14,fontWeight:700,fontFamily:"'Instrument Sans',system-ui,sans-serif",color:r.needed>0?t.accent:t.green}}>
                   {r.needed>0?`${fmt(r.needed)} units`:"✓ Covered"}
                 </div>
               </div>
@@ -3604,13 +3604,13 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
         <LineChart data={salesHistory} margin={{top:8,right:16,left:0,bottom:0}}>
           <CartesianGrid stroke={t.border} strokeDasharray="3 3" vertical={false}/>
           <XAxis dataKey="date" tickFormatter={dt=>{const p=dt.split("-");return `${p[2]}/${p[1]}`;}}
-            tick={{fill:t.text3,fontSize:11,fontFamily:"'Inter',system-ui,sans-serif"}} axisLine={false} tickLine={false}
+            tick={{fill:t.text3,fontSize:11,fontFamily:"'Instrument Sans',system-ui,sans-serif"}} axisLine={false} tickLine={false}
             interval={Math.max(0,Math.floor(salesHistory.length/8)-1)}/>
-          <YAxis tick={{fill:t.text3,fontSize:11,fontFamily:"'Inter',system-ui,sans-serif"}} axisLine={false} tickLine={false} width={36}/>
+          <YAxis tick={{fill:t.text3,fontSize:11,fontFamily:"'Instrument Sans',system-ui,sans-serif"}} axisLine={false} tickLine={false} width={36}/>
           <Tooltip
             labelFormatter={dt=>{const p=dt.split("-");return `${p[2]}/${p[1]}/${p[0]}`;}}
             formatter={v=>[fmt(v),"Units sold"]}
-            contentStyle={{background:t.tooltipBg,border:`1px solid ${t.border}`,borderRadius:8,fontSize:12,fontFamily:"'Inter',system-ui,sans-serif",boxShadow:"0 4px 12px rgba(0,0,0,.08)"}}
+            contentStyle={{background:t.tooltipBg,border:`1px solid ${t.border}`,borderRadius:8,fontSize:12,fontFamily:"'Instrument Sans',system-ui,sans-serif",boxShadow:"0 4px 12px rgba(0,0,0,.08)"}}
             labelStyle={{color:t.text2}} itemStyle={{color:t.accent}}/>
           <Line type="monotone" dataKey="units" stroke={t.accent} strokeWidth={2} dot={false} activeDot={{r:4}}/>
         </LineChart>
@@ -3633,7 +3633,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
     <div className="card" id="sec-70d-forecast">
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
         <div className="ch" style={{marginBottom:0}}>70-Day Inventory Forecast</div>
-        <div style={{display:"flex",gap:14,alignItems:"center",fontSize:9,fontFamily:"'Inter',system-ui,sans-serif"}}>
+        <div style={{display:"flex",gap:14,alignItems:"center",fontSize:9,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
           <span style={{display:"flex",alignItems:"center",gap:5}}>
             <span style={{width:14,height:2,background:t.accent,display:"inline-block",borderRadius:1}}/>
             <span style={{color:t.text3}}>Stock</span>
@@ -3669,10 +3669,10 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
           <Line type="monotone" dataKey="stock" stroke={t.accent} strokeWidth={2} dot={false}/>
         </LineChart>
       </ResponsiveContainer>
-      {soi>0&&<div style={{marginTop:6,fontSize:9,color:t.red,fontFamily:"'Inter',system-ui,sans-serif"}}>
+      {soi>0&&<div style={{marginTop:6,fontSize:9,color:t.red,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
         ⚠ Projected stockout in ~{soi} days ({fmtDate(new Date((sku._anchor||getToday()).getTime()+soi*86400000))})
       </div>}
-      {reorderStock>0&&sku.currentStock<=reorderStock&&<div style={{marginTop:4,fontSize:9,color:t.yellow,fontFamily:"'Inter',system-ui,sans-serif"}}>
+      {reorderStock>0&&sku.currentStock<=reorderStock&&<div style={{marginTop:4,fontSize:9,color:t.yellow,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
         ⚡ Current stock is at or below the reorder level — purchase recommended
       </div>}
     </div>
@@ -3759,7 +3759,7 @@ function SKUManager({skuCfg,setSkuCfg,data,settings,setSettings,t}){
     <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:14,gap:12,flexWrap:"wrap"}}>
       <div>
         <div style={{fontSize:15,fontWeight:700,color:t.text,marginBottom:4}}>SKU Manager</div>
-        <div style={{fontSize:10,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif"}}>
+        <div style={{fontSize:10,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
           Toggle SKUs active/inactive · Add notes · Set categories · Changes apply instantly
         </div>
       </div>
@@ -3779,25 +3779,25 @@ function SKUManager({skuCfg,setSkuCfg,data,settings,setSettings,t}){
     </div>
     <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,flexWrap:"wrap"}}>
       <div className="sbox"><span style={{color:t.text3}}>⌕</span><input placeholder="Search name, ASIN, SKU, note…" value={search} onChange={e=>setSearch(e.target.value)}/></div>
-      <select className="sel" value={filterStatus} onChange={e=>setFilterStatus(e.target.value)}>
+      <Select className="sel" value={filterStatus} onChange={e=>setFilterStatus(e.target.value)}>
         <option value="all">All SKUs ({rows.length})</option>
         <option value="active">Active ({activeCount})</option>
         <option value="inactive">Inactive ({inactiveCount})</option>
-      </select>
+      </Select>
       {selected.size>0&&(
         <div style={{display:"flex",alignItems:"center",gap:6,marginLeft:4}}>
-          <span style={{fontSize:10,color:t.accent,fontFamily:"'Inter',system-ui,sans-serif"}}>{selected.size} selected</span>
+          <span style={{fontSize:10,color:t.accent,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{selected.size} selected</span>
           <button className="btn bp" style={{fontSize:10,padding:"4px 9px"}} onClick={()=>bulkSetActive(true)}>✓ Activate</button>
           <button className="btn" style={{fontSize:10,padding:"4px 9px",background:t.redBg,color:t.red,border:`1px solid ${t.redBdr}`}} onClick={()=>bulkSetActive(false)}>✕ Deactivate</button>
-          <select className="sel" style={{fontSize:10}} defaultValue="" onChange={e=>{if(e.target.value)bulkSetCategory(e.target.value);}}>
+          <Select className="sel sel-sm" defaultValue="" onChange={e=>{if(e.target.value)bulkSetCategory(e.target.value);}}>
             <option value="">Set category…</option>
             {CATEGORY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}
-          </select>
+          </Select>
           <button className="btn bs" style={{fontSize:10,padding:"4px 9px"}} onClick={clearSelect}>Clear</button>
         </div>
       )}
       {selected.size===0&&<button className="btn bs" style={{fontSize:10,padding:"4px 9px",marginLeft:4}} onClick={selectAll}>Select All</button>}
-      <span style={{marginLeft:"auto",fontSize:9,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif"}}>{filtered.length} SKUs shown</span>
+      <span style={{marginLeft:"auto",fontSize:9,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{filtered.length} SKUs shown</span>
     </div>
     <div className="card" style={{padding:0,overflow:"hidden"}}>
       <div className="tw ts">
@@ -3811,30 +3811,30 @@ function SKUManager({skuCfg,setSkuCfg,data,settings,setSettings,t}){
             <tr key={r.asin} style={{opacity:r.active?1:.55}}>
               <td><input type="checkbox" checked={selected.has(r.asin)} onChange={()=>toggleSelect(r.asin)} style={{cursor:"pointer"}}/></td>
               <td>
-                <button onClick={()=>toggle(r.asin)} style={{padding:"4px 12px",borderRadius:20,cursor:"pointer",fontSize:12,fontWeight:500,fontFamily:"'Inter',system-ui,sans-serif",background:r.active?t.greenBg:t.redBg,color:r.active?t.green:t.red,border:`1px solid ${r.active?t.greenBdr:t.redBdr}`,transition:"all .15s"}}>
+                <button onClick={()=>toggle(r.asin)} style={{padding:"4px 12px",borderRadius:20,cursor:"pointer",fontSize:12,fontWeight:500,fontFamily:"'Instrument Sans',system-ui,sans-serif",background:r.active?t.greenBg:t.redBg,color:r.active?t.green:t.red,border:`1px solid ${r.active?t.greenBdr:t.redBdr}`,transition:"all .15s"}}>
                   {r.active?"● ACTIVE":"○ INACTIVE"}
                 </button>
               </td>
               <td><div className="tn" style={{maxWidth:180}}>{r.finalName}</div></td>
-              <td><span style={{fontSize:10,fontFamily:"'Inter',system-ui,sans-serif",color:t.text3}}>{r.asin}</span></td>
-              <td><span style={{fontSize:10,color:t.text2,fontFamily:"'Inter',system-ui,sans-serif"}}>{r.sellerSku}</span></td>
+              <td><span style={{fontSize:10,fontFamily:"'Instrument Sans',system-ui,sans-serif",color:t.text3}}>{r.asin}</span></td>
+              <td><span style={{fontSize:10,color:t.text2,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{r.sellerSku}</span></td>
               <td>
-                <select value={r.category} onChange={e=>setCategory(r.asin,e.target.value)} style={{padding:"3px 6px",background:t.surface2,border:`1px solid ${t.border}`,borderRadius:6,color:t.text2,fontSize:10,cursor:"pointer",fontFamily:"'Inter',system-ui,sans-serif",outline:"none"}}>
+                <Select className="sel sel-sm" value={r.category} onChange={e=>setCategory(r.asin,e.target.value)}>
                   {CATEGORY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}
-                </select>
+                </Select>
               </td>
               <td style={{minWidth:180}}>
                 {editingNote===r.asin?(
                   <div style={{display:"flex",gap:5,alignItems:"center"}}>
                     <input autoFocus value={noteValue} onChange={e=>setNoteValue(e.target.value)}
                       onKeyDown={e=>{if(e.key==="Enter")setNote(r.asin,noteValue);if(e.key==="Escape")setEditingNote(null);}}
-                      style={{flex:1,padding:"3px 7px",background:t.surface2,border:`1px solid ${t.accent}`,borderRadius:5,color:t.text,fontSize:11,fontFamily:"'Inter',system-ui,sans-serif",outline:"none"}}
+                      style={{flex:1,padding:"3px 7px",background:t.surface2,border:`1px solid ${t.accent}`,borderRadius:5,color:t.text,fontSize:11,fontFamily:"'Instrument Sans',system-ui,sans-serif",outline:"none"}}
                       placeholder="Add note…"/>
                     <span style={{cursor:"pointer",color:t.green,fontSize:14}} onClick={()=>setNote(r.asin,noteValue)}>✓</span>
                     <span style={{cursor:"pointer",color:t.text3,fontSize:14}} onClick={()=>setEditingNote(null)}>✕</span>
                   </div>
                 ):(
-                  <div onClick={()=>{setEditingNote(r.asin);setNoteValue(r.note);}} style={{cursor:"pointer",fontSize:10,color:r.note?t.text2:t.text3,fontFamily:"'Inter',system-ui,sans-serif",padding:"3px 0",borderBottom:`1px dashed ${t.border2}`,minWidth:120}} title="Click to edit">
+                  <div onClick={()=>{setEditingNote(r.asin);setNoteValue(r.note);}} style={{cursor:"pointer",fontSize:10,color:r.note?t.text2:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif",padding:"3px 0",borderBottom:`1px dashed ${t.border2}`,minWidth:120}} title="Click to edit">
                     {r.note||<span style={{opacity:.4}}>click to add note…</span>}
                   </div>
                 )}
@@ -3843,7 +3843,7 @@ function SKUManager({skuCfg,setSkuCfg,data,settings,setSettings,t}){
                 <input type="number" min={0} step="0.1" placeholder="auto" defaultValue={r.priorityDemand??""}
                   onBlur={e=>setPriorityDemand(r.asin,e.target.value)}
                   onKeyDown={e=>{if(e.key==="Enter")e.target.blur();}}
-                  style={{width:64,padding:"3px 6px",background:t.surface2,border:`1px solid ${t.border}`,borderRadius:5,color:t.accent,fontSize:10,textAlign:"right",fontFamily:"'Inter',system-ui,sans-serif",fontWeight:700,outline:"none"}}/>
+                  style={{width:64,padding:"3px 6px",background:t.surface2,border:`1px solid ${t.border}`,borderRadius:5,color:t.accent,fontSize:10,textAlign:"right",fontFamily:"'Instrument Sans',system-ui,sans-serif",fontWeight:700,outline:"none"}}/>
               </td>
               {data&&<>
                 <td>{r.hasLiveData?<span style={{color:doiColor(r.doi),fontWeight:700}}>{isFinite(r.doi)&&r.doi<999?fmt(r.doi,1)+"d":"∞"}</span>:<span style={{color:t.text3,fontSize:9}}>inactive</span>}</td>
@@ -3861,7 +3861,7 @@ function SKUManager({skuCfg,setSkuCfg,data,settings,setSettings,t}){
         const blob=new Blob([JSON.stringify(skuCfg,null,2)],{type:"application/json"});
         const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="sku_config.json";a.click();URL.revokeObjectURL(url);
       }}>↓ Export Config JSON</button>
-      <span style={{fontSize:9,color:t.text3,fontFamily:"'Inter',system-ui,sans-serif"}}>Save config to file. To hard-code, paste into DEFAULT_SKU_CONFIG.</span>
+      <span style={{fontSize:9,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>Save config to file. To hard-code, paste into DEFAULT_SKU_CONFIG.</span>
     </div>
   </div>);
 }
@@ -3949,25 +3949,131 @@ export default function FBAPlanner(){
     setEmail(""); setPass(""); setState("out");
   }
 
-  if(state==="checking") return <div style={{minHeight:"100vh",background:"#0b0f17"}}/>;
-  if(state==="out") return (
-    <div style={{minHeight:"100vh",background:"#0b0f17",display:"flex",alignItems:"center",justifyContent:"center",padding:16,fontFamily:"system-ui,sans-serif"}}>
-      <form onSubmit={doLogin} style={{width:"100%",maxWidth:340,background:"#151b27",border:"1px solid #263043",borderRadius:12,padding:24,display:"flex",flexDirection:"column",gap:12}}>
-        <div style={{color:"#e6edf7",fontSize:20,fontWeight:700}}>Sign in</div>
-        <input type="email" autoComplete="username" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)}
-          style={{padding:"10px 12px",borderRadius:8,border:"1px solid #263043",background:"#0b0f17",color:"#e6edf7",fontSize:16}}/>
-        <input type="password" autoComplete="current-password" placeholder="Password" value={pass} onChange={e=>setPass(e.target.value)}
-          style={{padding:"10px 12px",borderRadius:8,border:"1px solid #263043",background:"#0b0f17",color:"#e6edf7",fontSize:16}}/>
-        {err&&<div style={{color:"#ff6b6b",fontSize:13}}>{err}</div>}
-        <button type="submit" disabled={busy} style={{padding:"10px 12px",borderRadius:8,border:"none",background:"#3b82f6",color:"#fff",fontSize:16,fontWeight:600,cursor:busy?"wait":"pointer"}}>
+  if(state==="checking") return <div style={{minHeight:"100vh",background:LIGHT.bg}}/>;
+  if(state==="out"){
+    const f:any={height:44,padding:"0 12px",borderRadius:8,border:`1px solid ${LIGHT.border2}`,background:"#fff",color:LIGHT.text,fontSize:16,fontFamily:"'Instrument Sans',system-ui,sans-serif"};
+    return (
+    <div style={{minHeight:"100vh",background:LIGHT.bg,display:"flex",alignItems:"center",justifyContent:"center",padding:16,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
+      <style>{"@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap');input:focus-visible,button:focus-visible{outline:2px solid "+LIGHT.focus+";outline-offset:2px}"}</style>
+      <form onSubmit={doLogin} style={{width:"100%",maxWidth:380,background:"#fff",border:`1px solid ${LIGHT.border}`,borderRadius:12,padding:24,display:"flex",flexDirection:"column",gap:12,textAlign:"left"}}>
+        <div style={{color:LIGHT.text,fontSize:24,fontWeight:600}}>Inventory Forecast</div>
+        <div style={{color:LIGHT.text3,fontSize:15,marginBottom:6}}>Sign in with the email and password your admin added.</div>
+        <label style={{fontSize:14,fontWeight:500,color:LIGHT.text2}}>Email
+          <input type="email" autoComplete="username" value={email} onChange={e=>setEmail(e.target.value)} style={{...f,width:"100%",marginTop:6,display:"block"}}/></label>
+        <label style={{fontSize:14,fontWeight:500,color:LIGHT.text2}}>Password
+          <input type="password" autoComplete="current-password" value={pass} onChange={e=>setPass(e.target.value)} style={{...f,width:"100%",marginTop:6,display:"block"}}/></label>
+        {err&&<div role="alert" style={{color:LIGHT.red,fontSize:14}}>{err}</div>}
+        <button type="submit" disabled={busy} style={{height:44,borderRadius:8,border:"none",background:LIGHT.accent,color:"#fff",fontSize:15,fontWeight:500,cursor:busy?"wait":"pointer",fontFamily:"inherit"}}>
           {busy?"Checking…":"Sign in"}
         </button>
       </form>
     </div>
-  );
+    );
+  }
   let authEmail="";
   try{ authEmail=JSON.parse(localStorage.getItem(AUTH_KEY)||"{}").email||""; }catch(_){}
   return <FBAPlannerApp onLogout={logout} authEmail={authEmail}/>;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SELECT — the one dropdown used everywhere (replaces native <select>).
+   Drop-in: takes <option> children, value/defaultValue, onChange({target:{value}}).
+   Keyboard: Enter/Space/Arrows open · Up/Down/Home/End move · Enter picks ·
+   Esc closes and returns focus · type-ahead. Search box when 8+ options.
+═══════════════════════════════════════════════════════════════ */
+function Select({value,defaultValue,onChange,children,className="sel",style,"aria-label":ariaLabel}:any){
+  const opts=Children.toArray(children).filter(isValidElement).map((c:any)=>({
+    value:String(c.props.value??Children.toArray(c.props.children).join("")),
+    label:Children.toArray(c.props.children).join(""),
+  }));
+  const[inner,setInner]=useState(String(defaultValue??opts[0]?.value??""));
+  const cur=value!==undefined?String(value):inner;
+  const[open,setOpen]=useState(false);
+  const[q,setQ]=useState("");
+  const[hl,setHl]=useState(0);
+  const[pos,setPos]=useState<any>(null);
+  const trigRef=useRef<HTMLButtonElement>(null);
+  const menuRef=useRef<HTMLDivElement>(null);
+  const searchRef=useRef<HTMLInputElement>(null);
+  const typed=useRef({s:"",t:0 as any});
+  const searchable=opts.length>=8;
+  const shown=searchable&&q?opts.filter(o=>o.label.toLowerCase().includes(q.toLowerCase())):opts;
+  const curLabel=opts.find(o=>o.value===cur)?.label??"";
+
+  function openMenu(){
+    const r=trigRef.current!.getBoundingClientRect();
+    const need=Math.min(280,opts.length*40+(searchable?44:0)+8);
+    const below=window.innerHeight-r.bottom;
+    const up=below<need&&r.top>below;
+    setPos({left:r.left,minWidth:r.width,...(up?{bottom:window.innerHeight-r.top+4}:{top:r.bottom+4}),maxH:Math.max(120,Math.min(280,(up?r.top:below)-12))});
+    setQ("");setHl(Math.max(0,opts.findIndex(o=>o.value===cur)));setOpen(true);
+  }
+  function close(refocus=true){setOpen(false);if(refocus)trigRef.current?.focus();}
+  function pick(o:{value:string}){
+    if(value===undefined)setInner(o.value);
+    onChange?.({target:{value:o.value}});
+    close();
+  }
+  useEffect(()=>{
+    if(!open)return;
+    if(searchable)searchRef.current?.focus();
+    const down=(e:MouseEvent)=>{
+      const n=e.target as Node;
+      if(menuRef.current?.contains(n)||trigRef.current?.contains(n))return;
+      setOpen(false);
+    };
+    const away=(e:Event)=>{ if(menuRef.current?.contains(e.target as Node))return; setOpen(false); };
+    document.addEventListener("mousedown",down);
+    window.addEventListener("scroll",away,true);
+    window.addEventListener("resize",away);
+    return()=>{document.removeEventListener("mousedown",down);window.removeEventListener("scroll",away,true);window.removeEventListener("resize",away);};
+  },[open,searchable]);
+  useEffect(()=>{
+    if(open)menuRef.current?.querySelector(".sel-opt.hl")?.scrollIntoView({block:"nearest"});
+  },[hl,open]);
+
+  function onKey(e:any){
+    const k=e.key;
+    if(!open){
+      if(k==="Enter"||k===" "||k==="ArrowDown"||k==="ArrowUp"){e.preventDefault();openMenu();}
+      return;
+    }
+    if(k==="ArrowDown"){e.preventDefault();setHl(h=>Math.min(shown.length-1,h+1));}
+    else if(k==="ArrowUp"){e.preventDefault();setHl(h=>Math.max(0,h-1));}
+    else if(k==="Home"&&!searchable){e.preventDefault();setHl(0);}
+    else if(k==="End"&&!searchable){e.preventDefault();setHl(shown.length-1);}
+    else if(k==="Enter"){e.preventDefault();if(shown[hl])pick(shown[hl]);}
+    else if(k==="Escape"){e.preventDefault();e.stopPropagation();close();}
+    else if(k==="Tab"){setOpen(false);}
+    else if(!searchable&&k.length===1&&!e.ctrlKey&&!e.metaKey&&!e.altKey){
+      clearTimeout(typed.current.t);
+      typed.current.s+=k.toLowerCase();
+      typed.current.t=setTimeout(()=>{typed.current.s="";},600);
+      const i=shown.findIndex(o=>o.label.toLowerCase().startsWith(typed.current.s));
+      if(i>=0)setHl(i);
+    }
+  }
+
+  return(<>
+    <button ref={trigRef} type="button" role="combobox" aria-haspopup="listbox" aria-expanded={open} aria-label={ariaLabel}
+      className={className} style={style} onClick={()=>open?close(false):openMenu()} onKeyDown={onKey}>
+      <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{curLabel}</span>
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{flexShrink:0}}><polyline points="3,5 7,9 11,5"/></svg>
+    </button>
+    {open&&pos&&createPortal(
+      <div ref={menuRef} className="sel-menu" role="listbox" style={{left:pos.left,minWidth:pos.minWidth,top:pos.top,bottom:pos.bottom,maxHeight:pos.maxH}}>
+        {searchable&&<input ref={searchRef} className="sel-search" placeholder="Search" aria-label="Search options" value={q} onChange={e=>{setQ(e.target.value);setHl(0);}} onKeyDown={onKey}/>}
+        {shown.length===0&&<div style={{padding:"10px",fontSize:14,opacity:.7}}>No matches</div>}
+        {shown.map((o,i)=>(
+          <div key={o.value} role="option" aria-selected={o.value===cur}
+            className={`sel-opt${i===hl?" hl":""}${o.value===cur?" on":""}`}
+            onMouseEnter={()=>setHl(i)} onMouseDown={e=>e.preventDefault()} onClick={()=>pick(o)}>
+            <span>{o.label}</span>
+            {o.value===cur&&<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="2.5,7.5 5.5,10.5 11.5,3.5"/></svg>}
+          </div>
+        ))}
+      </div>,document.body)}
+  </>);
 }
 
 function FBAPlannerApp({onLogout,authEmail}:{onLogout?:()=>void;authEmail?:string}){
@@ -3976,24 +4082,7 @@ function FBAPlannerApp({onLogout,authEmail}:{onLogout?:()=>void;authEmail?:strin
   const[parseDebug,setParseDebug]=useState(null);
   const t=dark?DARK:LIGHT;
   const[tab,setTab]=useState("input");
-  // Sidebar is always collapsed in layout (never resizes .main / triggers reflow).
-  // The full-width nav is a position:fixed overlay shown on hover — "pinned" keeps
-  // it open without hovering, still as an overlay, still no layout change.
-  const[pinned,setPinned]=useState(false);
-  const[sbHover,setSbHover]=useState(false);
-  const sbHoverTimer=useRef(null);
-  const sbExpanded = pinned || sbHover;
-  // Open only after the pointer dwells on the rail for 500ms — stops the panel
-  // flying open on a stray cursor pass. Leaving cancels any pending open.
-  function sbOpenNow(){
-    if(sbHoverTimer.current){clearTimeout(sbHoverTimer.current); sbHoverTimer.current=null;}
-    if(sbHover) return;
-    sbHoverTimer.current=setTimeout(()=>{ sbHoverTimer.current=null; setSbHover(true); },500);
-  }
-  function sbCloseSoon(){
-    if(sbHoverTimer.current){clearTimeout(sbHoverTimer.current); sbHoverTimer.current=null;}
-    sbHoverTimer.current=setTimeout(()=>{ sbHoverTimer.current=null; setSbHover(false); },150);
-  }
+  const[menuOpen,setMenuOpen]=useState(false);
   const[rawData,setRawData]=useState(null);
   const[data,setData]=useState(null);
   const[warnings,setWarnings]=useState([]);
@@ -4144,67 +4233,59 @@ function FBAPlannerApp({onLogout,authEmail}:{onLogout?:()=>void;authEmail?:strin
   // Anchor date for display
   const anchorLabel = rawData?.maxDate ? `Data: ${fmtDate(rawData.maxDate)}` : fmtDate(getToday());
 
-  // Shared nav markup for both the always-collapsed in-flow rail and the
-  // full-width hover overlay — `collapsed` just toggles the .col modifier
-  // that the existing CSS already uses to hide labels/expand icon-only.
-  function sidebarNav(collapsed){
-    return(<>
-      <div className="sb-logo">
-        {LOGO_ICON}
-        <div className="sb-txt"><h1>Inventory Forecast</h1></div>
-      </div>
-      <div className="sb-nav">
-        <div className="sb-sec">
-          <div className="sb-lbl">Navigation</div>
-          {TABS.map(tb=>{
-            const disabled=tb.id!=="input"&&!data&&tb.id!=="warnings";
-            return(
-              <div key={tb.id}
-                className={`ni${tab===tb.id||(tab==="detail"&&tb.id==="allskus")?" on":""}${disabled?" disabled":""}`}
-                onClick={()=>{if(disabled)return;setSelSku(null);setTab(tb.id);setSbHover(false);}}>
-                <span className="ni-ic">{NAV_ICONS[tb.id]}</span>
-                <span className="ni-txt">{tb.l}</span>
-                {tb.badge>0&&<span className={`nb${tb.bc?" "+tb.bc:""}`}>{tb.badge}</span>}
-              </div>
-            );
-          })}
-        </div>
-        {data&&!collapsed&&<div className="sb-sec">
-          <div
-style={{
-  padding:"5px 8px",
-  marginTop:12,
-  paddingTop:8,
-  borderTop:"1px solid rgba(255,255,255,.06)",
-  color:"rgba(186, 170, 255, 0.28)",
-  fontSize:8,
-  letterSpacing:1.4,
-  fontFamily:"'Inter',system-ui,sans-serif",
-}}
->
-  Designed for Helett
-</div>
-        </div>}
-      </div>
-      <div className="sb-foot" onClick={()=>setPinned(p=>!p)} title={pinned?"Unpin sidebar":"Pin sidebar open"}>
-        <svg className="sb-foot-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          {collapsed?<polyline points="7,5 11,9 7,13"/>:<polyline points="11,5 7,9 11,13"/>}
-        </svg>
-      </div>
-    </>);
+  const firstName=(authEmail||"").split("@")[0].split(/[._-]/)[0].replace(/^./,c=>c.toUpperCase())||"Account";
+  const goTab=(id:string)=>{setSelSku(null);setTab(id);setMenuOpen(false);};
+  const isOn=(id:string)=>tab===id||(tab==="detail"&&id==="allskus");
+  const isDisabled=(id:string)=>id!=="input"&&!data&&id!=="warnings";
+  const MARK=<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="9" cy="9" r="5"/><circle cx="15" cy="15" r="5"/></svg>;
+  const TAB_BAR=["dashboard","allskus","fc","lis","procurement"];
+  const signOut=()=>{if(window.confirm("Sign out of this device?"))onLogout&&onLogout();};
+
+  function navItems(){
+    return TABS.map(tb=>(
+      <button key={tb.id} type="button" disabled={isDisabled(tb.id)}
+        className={`ni${isOn(tb.id)?" on":""}${isDisabled(tb.id)?" disabled":""}`}
+        aria-current={isOn(tb.id)?"page":undefined} onClick={()=>goTab(tb.id)}>
+        <span className="ni-ic">{NAV_ICONS[tb.id]}</span>
+        <span className="ni-txt">{tb.l}</span>
+        {tb.badge>0&&<span className={`nb${tb.bc==="r"?" r":""}`}>{tb.badge}</span>}
+      </button>
+    ));
   }
 
   return(<>
     <style>{makeCSS(t)}</style>
     <div id="fba-root">
-      {/* SIDEBAR — a permanently-collapsed rail sits in the flex layout (so
-          .main never resizes/reflows), and a full-width copy renders as a
-          position:fixed overlay on hover, sitting on top of the page. */}
-      <div className="sb col" onMouseEnter={sbOpenNow} onMouseLeave={sbCloseSoon}>
-        {sidebarNav(true)}
-      </div>
-      <div className={`sb sb-overlay${sbExpanded?" show":""}`} onMouseEnter={sbOpenNow} onMouseLeave={sbCloseSoon}>
-        {sidebarNav(false)}
+      {/* SIDEBAR: fixed 240px on laptops; phones get the top bar + tab bar instead */}
+      <nav className="sb" aria-label="Main">
+        <div className="sb-logo">
+          <div className="sb-icon">{MARK}</div>
+          <div className="sb-txt"><h1>Inventory Forecast</h1></div>
+        </div>
+        <div className="sb-nav">{navItems()}</div>
+        <div className="sb-user">
+          <div className="sb-user-name"><b>{firstName}</b>{authEmail}</div>
+          {onLogout&&<button type="button" className="btn btn-signout" onClick={signOut}>Sign out</button>}
+        </div>
+      </nav>
+
+      {/* PHONE: bottom tab bar + menu sheet */}
+      <nav className="tabbar" aria-label="Main">
+        {TAB_BAR.map(id=>{const tb=TABS.find(x=>x.id===id);return(
+          <button key={id} type="button" className={`tab${isOn(id)?" on":""}${isDisabled(id)?" disabled":""}`} aria-current={isOn(id)?"page":undefined} onClick={()=>goTab(id)}>
+            <span className="tab-ic">{NAV_ICONS[id]}</span><span>{tb.l}</span>
+          </button>);})}
+      </nav>
+      <div className={`msheet-wrap${menuOpen?" open":""}`} aria-hidden={!menuOpen}>
+        <div className="msheet-bg" onClick={()=>setMenuOpen(false)}/>
+        <div className="msheet" role="dialog" aria-label="Menu" onKeyDown={e=>{if(e.key==="Escape")setMenuOpen(false);}}>
+          <div className="msheet-hd">
+            <div className="sb-user-name"><b>{firstName}</b>{authEmail}</div>
+            <button type="button" className="mbar-btn" aria-label="Close menu" onClick={()=>setMenuOpen(false)}>✕</button>
+          </div>
+          <div>{navItems()}</div>
+          {onLogout&&<button type="button" className="btn btn-signout" style={{width:"100%",marginTop:12}} onClick={signOut}>Sign out</button>}
+        </div>
       </div>
 
       {/* MAIN */}
@@ -4214,6 +4295,10 @@ style={{
           <div style={{fontSize:14,fontWeight:600,color:t.text}}>Loading inventory data…</div>
           <div style={{fontSize:12,color:t.text3}}>Fetching sheets and calculating</div>
         </div>}
+        <div className="mbar">
+          <div className="mbar-brand"><div className="sb-icon">{MARK}</div>Inventory Forecast</div>
+          <div className="mbar-r"><span>{firstName}</span><button type="button" className="mbar-btn" aria-label="Open menu" aria-expanded={menuOpen} onClick={()=>setMenuOpen(true)}>☰</button></div>
+        </div>
         <div className="topbar">
           <div style={{overflow:"hidden",minWidth:0}}>
             <div className="tb-title">{pageTitle}</div>
@@ -4225,7 +4310,7 @@ style={{
             {rawData?.minSalesDate&&rawData?.maxDate&&(
               <span className="tb-badge" style={{
                 fontSize:9,background:t.surface2,border:`1px solid ${t.border}`,
-                color:t.text3,fontFamily:"'Inter',system-ui,sans-serif",padding:"3px 8px",borderRadius:5,
+                color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif",padding:"3px 8px",borderRadius:5,
               }}>
                 Sales {rawData.minSalesDate.toLocaleDateString("en-IN",{day:"2-digit",month:"short"})} – {rawData.maxDate.toLocaleDateString("en-IN",{day:"2-digit",month:"short"})}
               </span>
@@ -4233,7 +4318,7 @@ style={{
             {rawData?.ledgerDate&&(
               <span className="tb-badge" style={{
                 fontSize:9,background:t.surface2,border:`1px solid ${t.border}`,
-                color:t.text3,fontFamily:"'Inter',system-ui,sans-serif",padding:"3px 8px",borderRadius:5,
+                color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif",padding:"3px 8px",borderRadius:5,
               }}>
                 Ledger {rawData.ledgerDate.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"})}
               </span>
@@ -4242,7 +4327,6 @@ style={{
             <button className="tb-btn pri" onClick={()=>dataInputRef.current?.refreshSheets()} disabled={loading} title="Re-fetch data from Google Sheets">{loading?"Refreshing…":"⟳ Refresh"}</button>
             <button className="tb-btn danger" onClick={()=>{if(window.confirm("Reset Purchased Units, Priority Demand and Add Inbound for every SKU back to default? This can't be undone."))resetManualValues();}} title="Reset Purchased Units, Priority Demand and Add Inbound for every SKU back to default">↺ Reset Values</button>
             <button className="tb-btn" onClick={()=>setDark(d=>!d)}>{dark?"Light":"Dark"}</button>
-            {onLogout&&<button className="tb-btn" onClick={()=>{if(window.confirm("Log out of this device?"))onLogout();}} title={authEmail?`Signed in as ${authEmail}`:"Log out"}>Log out</button>}
           </div>
         </div>
         <div className="content">
