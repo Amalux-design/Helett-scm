@@ -23,7 +23,7 @@ export const DARK={
   bg:"#0e1114",surface:"#161a1f",surface2:"#1d2228",
   border:"#2b323b",border2:"#3d4551",
   text:"#eceff3",text2:"#bcc4ce",text3:"#9099a6",
-  accent:"#eceff3",accentBg:"rgba(236,239,243,.06)",accentBdr:"rgba(236,239,243,.26)",onInk:"#12161c",
+  accent:"#c4cbd4",accentBg:"rgba(236,239,243,.06)",accentBdr:"rgba(236,239,243,.26)",onInk:"#12161c",
   focus:"#7aa2ff",
   red:"#f0716a",redBg:"rgba(240,113,106,.10)",redBdr:"rgba(240,113,106,.38)",
   yellow:"#e5a05a",yellowBg:"rgba(229,160,90,.10)",yellowBdr:"rgba(229,160,90,.38)",yellowText:"#12161c",
@@ -33,6 +33,6 @@ export const DARK={
   rowHover:"rgba(236,239,243,.04)",
   sidebar:"#161a1f",sbBorder:"#2b323b",sbMuted:"#9099a6",
   sbItem:"#bcc4ce",sbItemHover:"#eceff3",
-  sbHover:"rgba(236,239,243,.06)",sbActive:"#eceff3",sbActiveText:"#12161c",
+  sbHover:"rgba(236,239,243,.06)",sbActive:"#2d343e",sbActiveText:"#eceff3",
   tooltipBg:"#1d2228",
 };

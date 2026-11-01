@@ -18,7 +18,12 @@ button,input,select,textarea{font-family:${SANS}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}}
 
 /* ── SIDEBAR (laptop: fixed 240px) ── */
-.sb{width:240px;flex:0 0 240px;background:${t.sidebar};border-right:1px solid ${t.sbBorder};display:flex;flex-direction:column;overflow:hidden}
+.sb{position:fixed;top:0;left:0;bottom:0;z-index:80;width:260px;background:${t.sidebar};border-right:1px solid ${t.sbBorder};display:flex;flex-direction:column;overflow:hidden;transform:translateX(-100%);visibility:hidden;transition:transform .2s ease,visibility 0s .2s;box-shadow:none}
+.sb.open{transform:translateX(0);visibility:visible;transition:transform .2s ease;box-shadow:8px 0 24px rgba(0,0,0,.25)}
+.sb-bg{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .2s}
+.sb-bg.open{opacity:1;pointer-events:auto}
+.tb-menu{width:44px;height:44px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid ${t.border2};background:${t.surface};color:${t.text};font-size:18px;cursor:pointer}
+.tb-menu:hover{background:${t.surface2}}
 .sb-logo{padding:0 20px;height:64px;border-bottom:1px solid ${t.sbBorder};display:flex;align-items:center;gap:10px;flex-shrink:0}
 .sb-icon{width:28px;height:28px;background:${t.accent};border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:${t.onInk}}
 .sb-txt{overflow:hidden;min-width:0}
@@ -48,7 +53,7 @@ button,input,select,textarea{font-family:${SANS}}
 .tb-r{margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0}
 .tb-badge{display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:8px;font-size:13px;font-weight:500;white-space:nowrap;background:${t.surface};border:1px solid ${t.border};color:${t.text3}}
 .content{flex:1;overflow-y:auto;overflow-x:hidden;padding:24px 32px 40px}
-.content>div{max-width:1150px;margin-left:auto;margin-right:auto}
+
 
 /* ── BUTTONS (44px, 8px radius) ── */
 .btn,.tb-btn,.bk{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 16px;border-radius:8px;font-size:15px;font-weight:500;line-height:1;cursor:pointer;white-space:nowrap;border:1px solid ${t.border2};background:${t.surface};color:${t.text};transition:background .12s,border-color .12s}
@@ -107,7 +112,14 @@ button,input,select,textarea{font-family:${SANS}}
 input[type=range]{width:100%;max-width:100%;appearance:none;height:4px;background:${t.border2};border-radius:2px;outline-offset:6px;cursor:pointer;display:block}
 input[type=range]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;border-radius:50%;background:${t.accent};cursor:pointer;border:2px solid ${t.surface};box-shadow:0 0 0 1px ${t.accent}}
 input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:${t.accent};cursor:pointer;border:2px solid ${t.surface}}
-input[type=checkbox]{accent-color:${t.accent};width:16px;height:16px}
+input[type=checkbox]{appearance:none;-webkit-appearance:none;flex-shrink:0;position:relative;width:44px;height:26px;border-radius:999px;background:${t.border2};cursor:pointer;vertical-align:middle;transition:background .18s;border:0;outline-offset:2px}
+input[type=checkbox]::before{content:"";position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.35);transition:transform .18s}
+input[type=checkbox]:checked{background:${t.green}}
+input[type=checkbox]:checked::before{transform:translateX(18px)}
+input[type=checkbox]:disabled{opacity:.45;cursor:not-allowed}
+td input[type=checkbox],th input[type=checkbox]{appearance:auto;-webkit-appearance:checkbox;width:16px;height:16px;border-radius:0;background:none;accent-color:${t.accent}}
+td input[type=checkbox]::before,th input[type=checkbox]::before{display:none}
+td input[type=checkbox]:checked,th input[type=checkbox]:checked{background:none}
 
 /* ── TABLES ── */
 .tw{overflow-x:auto;width:100%;max-width:100%;-webkit-overflow-scrolling:touch}
@@ -191,7 +203,7 @@ tr.cr{cursor:pointer}
 
 /* ── PHONE / TABLET (<1024px): top bar + bottom tab bar ── */
 @media(max-width:1023px){
-  .sb{display:none}
+  .sb,.sb-bg,.tb-menu{display:none}
   .mbar{display:flex;align-items:center;justify-content:space-between;height:56px;padding:0 16px;background:${t.surface};border-bottom:1px solid ${t.border};flex-shrink:0}
   .mbar-brand{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:600;color:${t.text}}
   .mbar-r{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:500;color:${t.text2}}
@@ -205,7 +217,7 @@ tr.cr{cursor:pointer}
   .tab{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:0;background:transparent;color:${t.text3};font-size:12px;font-weight:500;cursor:pointer}
   .tab-ic{width:48px;height:30px;border-radius:999px;display:flex;align-items:center;justify-content:center}
   .tab.on{color:${t.text};font-weight:600}
-  .tab.on .tab-ic{background:${t.accent};color:${t.onInk}}
+  .tab.on .tab-ic{background:${t.sbActive};color:${t.sbActiveText}}
   .tab.disabled{opacity:.35;pointer-events:none}
   .msheet-wrap{display:block;position:fixed;inset:0;z-index:70;pointer-events:none}
   .msheet-wrap.open{pointer-events:auto}

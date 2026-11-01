@@ -4257,7 +4257,8 @@ function FBAPlannerApp({onLogout,authEmail}:{onLogout?:()=>void;authEmail?:strin
     <style>{makeCSS(t)}</style>
     <div id="fba-root">
       {/* SIDEBAR: fixed 240px on laptops; phones get the top bar + tab bar instead */}
-      <nav className="sb" aria-label="Main">
+      <div className={`sb-bg${menuOpen?" open":""}`} onClick={()=>setMenuOpen(false)}/>
+      <nav className={`sb${menuOpen?" open":""}`} aria-label="Main" aria-hidden={!menuOpen} onKeyDown={e=>{if(e.key==="Escape")setMenuOpen(false);}}>
         <div className="sb-logo">
           <div className="sb-icon">{MARK}</div>
           <div className="sb-txt"><h1>Inventory Forecast</h1></div>
@@ -4297,9 +4298,10 @@ function FBAPlannerApp({onLogout,authEmail}:{onLogout?:()=>void;authEmail?:strin
         </div>}
         <div className="mbar">
           <div className="mbar-brand"><div className="sb-icon">{MARK}</div>Inventory Forecast</div>
-          <div className="mbar-r"><span>{firstName}</span><button type="button" className="mbar-btn" aria-label="Open menu" aria-expanded={menuOpen} onClick={()=>setMenuOpen(true)}>☰</button></div>
+          <div className="mbar-r"><button type="button" className="mbar-btn" aria-label="Open menu" aria-expanded={menuOpen} onClick={()=>setMenuOpen(true)}>☰</button></div>
         </div>
         <div className="topbar">
+          <button type="button" className="tb-menu" aria-label="Open navigation" aria-expanded={menuOpen} onClick={()=>setMenuOpen(true)}>☰</button>
           <div style={{overflow:"hidden",minWidth:0}}>
             <div className="tb-title">{pageTitle}</div>
             {data&&<div className="tb-sub">
