@@ -3124,7 +3124,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
       ].map(k=>(
         <div key={k.l} className="kc">
           <div className="kl">{k.l}</div>
-          <div className="kv" style={{fontSize:16,color:k.col}}>{k.v}</div>
+          <div className="kv" style={{color:k.col}}>{k.v}</div>
         </div>
       ))}
     </div>
@@ -3325,7 +3325,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
         ].map(k=>(
           <div key={k.l} className="kc">
             <div className="kl">{k.l}</div>
-            <div className="kv" style={{fontSize:16,color:k.col}}>{k.v}</div>
+            <div className="kv" style={{color:k.col}}>{k.v}</div>
           </div>
         ))}
       </div>
@@ -3492,7 +3492,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
                   }}
                 />
               </td>
-              <td><span className="badge" style={{background:`${FC_STATUS_COLOR[fc.status]}18`,color:FC_STATUS_COLOR[fc.status],border:`1px solid ${FC_STATUS_COLOR[fc.status]}40`}}>{fc.status.toUpperCase()}</span></td>
+              <td><span className={`badge${fc.status==="stockout"?" solid":""}`} style={{["--bc" as any]:FC_STATUS_COLOR[fc.status]}}>{fc.status.toUpperCase()}</span></td>
             </tr>
           ))}</tbody>
         </table>
@@ -3504,7 +3504,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
           const finalNeeded = Math.max(0, r.needed - inboundOffset);
           return(
           <div key={r.fc} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",background:t.surface2,borderRadius:7,border:`1px solid ${t.border}`,marginBottom:5,fontSize:11}}>
-            <span className="badge" style={{background:`${FC_STATUS_COLOR[r.status]}18`,color:FC_STATUS_COLOR[r.status],border:`1px solid ${FC_STATUS_COLOR[r.status]}40`}}>{r.status.toUpperCase()}</span>
+            <span className={`badge${r.status==="stockout"?" solid":""}`} style={{["--bc" as any]:FC_STATUS_COLOR[r.status]}}>{r.status.toUpperCase()}</span>
             <span style={{flex:1,color:t.text}}>{r.label}</span>
             <span style={{color:t.text3}}>DOI: {isFinite(r.doi)?fmt(r.doi,1)+"d":"∞"}</span>
             {inboundOffset>0&&<span style={{color:t.text3,fontSize:10,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>−{fmt(inboundOffset)} inbound</span>}

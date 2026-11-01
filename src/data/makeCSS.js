@@ -89,12 +89,14 @@ button,input,select,textarea{font-family:${SANS}}
 .tb-meta{font-size:13px;color:${t.text3};white-space:nowrap;margin-right:6px}
 
 /* ── BADGES (24px, 8px radius, no dots, outline only) ── */
-.badge{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 8px;border-radius:8px;font-size:13px;font-weight:500;white-space:nowrap;border:1px solid ${t.text}!important;background:${t.surface}!important;color:${t.text}!important}
+.badge{--bc:${t.text};display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:8px;font-size:13px;font-weight:600;white-space:nowrap;border:1px solid var(--bc)!important;background:color-mix(in srgb,var(--bc) 14%,${t.surface})!important;color:var(--bc)!important}
 .badge *{color:inherit!important;background:transparent!important}
 .badge .dot{display:none}
-.badge.bg{border-color:${t.green}!important;color:${t.green}!important}
-.badge.br{border-color:${t.red}!important;color:${t.red}!important}
-.badge.by,.badge.bpr{border-color:${t.orange}!important;color:${t.orange}!important}
+.badge.bg{--bc:${t.green}}
+.badge.br{--bc:${t.red}}
+.badge.by,.badge.bpr{--bc:${t.orange}}
+.badge.bgr{--bc:${t.text3}}
+.badge.solid{background:var(--bc)!important;color:#fff!important;border-color:var(--bc)!important}
 .dot{width:6px;height:6px;border-radius:50%;display:inline-block;flex-shrink:0}
 .dot.r{background:${t.red}}.dot.y{background:${t.yellow}}.dot.g{background:${t.green}}.dot.b{background:${t.accent}}.dot.gr{background:${t.text3}}.dot.p{background:${t.orange}}
 .br,.by,.bg,.bb,.bgr,.bpr{font-weight:500}
@@ -196,10 +198,13 @@ tr.cr{cursor:pointer}
 .empty p{font-size:14px;line-height:1.6;color:${t.text3};text-align:center}
 .d2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .d4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
-.ac{padding:12px;background:${t.surface2};border-radius:8px;border:1px solid ${t.border}}
-.acl{font-size:13px;color:${t.text3};margin-bottom:4px;font-weight:500}
-.acv{font-size:22px;font-weight:600;font-family:${MONO};letter-spacing:-.3px}
+.ac{padding:16px 18px;background:${t.surface};border-radius:12px;border:1px solid ${t.border}}
+.acl{font-size:14px;color:${t.text3};margin-bottom:8px;font-weight:500}
+.acv{font-size:22px;font-weight:600;font-family:${MONO};letter-spacing:-.3px;line-height:1.1;font-variant-numeric:tabular-nums}
 .acs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.d4 .kv,.acs .acv{font-size:22px;line-height:1.1}
+.d4 .kl,.acs .acl{font-size:14px;margin-bottom:8px}
+.d4 .kc{padding:16px 18px}
 .hm-grid{display:grid;gap:8px}
 .hm-region{border-radius:8px;padding:10px 14px;position:relative;overflow:hidden}
 .hm-name{font-size:13px;font-weight:600;margin-bottom:5px}
