@@ -4350,7 +4350,7 @@ function FBAPlannerApp({onLogout,authEmail}:{onLogout?:()=>void;authEmail?:strin
   const goTab=(id:string)=>{setSelSku(null);setTab(id);setMenuOpen(false);};
   const isOn=(id:string)=>tab===id||(tab==="detail"&&id==="allskus");
   const isDisabled=(id:string)=>id!=="input"&&!data&&id!=="warnings";
-  const TAB_BAR=["dashboard","allskus","fc","lis","procurement"];
+  const TAB_BAR=["dashboard","allskus","fc","lis"];
   const signOut=()=>{if(window.confirm("Sign out of this device?"))onLogout&&onLogout();};
 
   function navItems(){
