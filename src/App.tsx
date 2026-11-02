@@ -1033,14 +1033,23 @@ const DataInput = forwardRef(function DataInput({onLoaded,loading,setLoading,t,p
     setErr(null);setLoading(true);
     const base=`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=`;
     try{
-      const ft=async(tab,required=true)=>{
-        const r=await fetch(base+encodeURIComponent(tab));
+      const ft=async(tab,required=true,extra="")=>{
+        const r=await fetch(base+encodeURIComponent(tab)+extra);
         if(!r.ok){if(!required)return[];throw new Error(`Tab "${tab}" not accessible (HTTP ${r.status})`);}
         const txt=await r.text();
         if(txt.trim().startsWith("<!")){if(!required)return[];throw new Error(`Tab "${tab}" returned HTML — ensure sheet is public`);}
         return parseCSV(txt);
       };
-      const[ir,or,lr,ltr,purchr,fir]=await Promise.all([ft("Inventory",true),ft("Sales",true),ft("Ledger",false),ft("Leadtime",false),ft("Purchases",false),ft("FBA_Inv",false)]);
+      // Sales is ~5 MB across 36 columns but the app reads only 9 (cols A,C,E,G,L,M,O,Y,Z).
+      // Ask Google for just those; if the headers don't match (columns moved), fall back to the full tab.
+      const SALES_NEEDED=["amazon-order-id","purchase-date","order-status","sales-channel","sku","asin","quantity","ship-city","ship-state"];
+      const fetchSales=async()=>{
+        const rows=await ft("Sales",true,"&tq="+encodeURIComponent("select A,C,E,G,L,M,O,Y,Z")).catch(()=>null);
+        if(rows&&rows[0]&&SALES_NEEDED.every(k=>k in rows[0])) return rows;
+        console.warn("Sales column trim not usable (headers differ) - fetching the full tab");
+        return ft("Sales",true);
+      };
+      const[ir,or,lr,ltr,purchr,fir]=await Promise.all([ft("Inventory",true),fetchSales(),ft("Ledger",false),ft("Leadtime",false),ft("Purchases",false),ft("FBA_Inv",false)]);
       const debug={
         invCols:ir[0]?Object.keys(ir[0]):[],
         ordCols:or[0]?Object.keys(or[0]):[],
