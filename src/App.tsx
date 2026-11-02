@@ -3893,6 +3893,14 @@ function SKUManager({skuCfg,setSkuCfg,data,settings,setSettings,t}){
 ═══════════════════════════════════════════════════════════════ */
 const AUTH_SHEET_ID="1Va-jdWfO2dmO6R-QCnkg9S2YqIWacx9pKfkW3Th-RGw";
 const AUTH_KEY="fba_auth";
+// Login backend: the Apps Script web app in apps-script/auth.gs (bound to the PRIVATE auth sheet).
+// Paste its /exec URL here. While this is empty the app uses the old public "Users" tab instead.
+const AUTH_URL="";
+async function authCall(body){
+  const r=await fetch(AUTH_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)});
+  if(!r.ok) throw new Error(`Login service error (HTTP ${r.status})`);
+  return r.json();
+}
 async function sha256Hex(s){
   const buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
@@ -4004,11 +4012,23 @@ export default function FBAPlanner(){
   const[err,setErr]=useState(null);
   const[busy,setBusy]=useState(false);
 
-  // On load: if device has saved login, re-validate against sheet (revoked row → logged out).
-  // Offline / fetch failure → trust saved login.
+  // On load: a saved token opens the app immediately; it is re-checked in the background
+  // (removed users are signed out within about a minute). Offline / service down -> stay signed in.
   useEffect(()=>{
     let saved=null;
     try{ saved=JSON.parse(localStorage.getItem(AUTH_KEY)||"null"); }catch(_){}
+    const dropLogin=()=>{ try{localStorage.removeItem(AUTH_KEY);}catch(_){} setState("out"); };
+
+    if(AUTH_URL){
+      if(!saved||!saved.token||!(saved.exp>Date.now())){ if(saved) dropLogin(); else setState("out"); return; }
+      setState("in");
+      authCall({action:"verify",token:saved.token})
+        .then(r=>{ if(r&&r.ok===false) dropLogin(); })
+        .catch(()=>{});
+      return;
+    }
+
+    // Legacy: public Users sheet tab
     if(!saved||!saved.email||!saved.stored){ setState("out"); return; }
     (async()=>{
       try{
@@ -4020,7 +4040,7 @@ export default function FBAPlanner(){
           return ek&&pk&&String(row[ek]).trim().toLowerCase()===saved.email&&String(row[pk]).trim()===saved.stored;
         });
         if(ok) setState("in");
-        else{ try{localStorage.removeItem(AUTH_KEY);}catch(_){} setState("out"); }
+        else dropLogin();
       }catch(_){ setState("in"); }
     })();
   },[]);
@@ -4030,12 +4050,21 @@ export default function FBAPlanner(){
     if(!email.trim()||!pass){ setErr("Enter email and password"); return; }
     setBusy(true); setErr(null);
     try{
-      const rows=await fetchUsers();
-      const stored=await checkCreds(rows,email,pass);
-      if(stored===null){ setErr("Wrong email or password"); }
-      else{
-        try{localStorage.setItem(AUTH_KEY,JSON.stringify({email:email.trim().toLowerCase(),stored}));}catch(_){}
-        setPass(""); setState("in");
+      if(AUTH_URL){
+        const r=await authCall({action:"login",email:email.trim(),password:pass});
+        if(!r.ok){ setErr(r.error||"Wrong email or password"); }
+        else{
+          try{localStorage.setItem(AUTH_KEY,JSON.stringify({email:r.email,token:r.token,exp:r.exp}));}catch(_){}
+          setPass(""); setState("in");
+        }
+      }else{
+        const rows=await fetchUsers();
+        const stored=await checkCreds(rows,email,pass);
+        if(stored===null){ setErr("Wrong email or password"); }
+        else{
+          try{localStorage.setItem(AUTH_KEY,JSON.stringify({email:email.trim().toLowerCase(),stored}));}catch(_){}
+          setPass(""); setState("in");
+        }
       }
     }catch(e){ setErr("Login error: "+e.message); }
     finally{ setBusy(false); }
