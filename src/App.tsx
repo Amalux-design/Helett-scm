@@ -4107,16 +4107,22 @@ function ConfirmDialog({open,title,message,confirmLabel,danger,onConfirm,onCance
     </div>,document.body);
 }
 
-/* Logo lockup: rising-bars mark + two-line wordmark as one unit. Uses currentColor. */
+/* Logo lockup: stepped-blocks mark + two-line wordmark as one unit. Uses currentColor. */
 function Logo({size=28}:{size?:number}){
   const fs=Math.round(size*0.5);
   return(
     <span style={{display:"inline-flex",alignItems:"center",gap:Math.round(size*0.34),color:"inherit",lineHeight:1}} aria-label="Inventory Forecast" role="img">
-      <svg width={size} height={size} viewBox="0 0 28 28" fill="none" aria-hidden="true" style={{flexShrink:0}}>
-        <rect x="2" y="17" width="5" height="9" rx="1.6" fill="currentColor"/>
-        <rect x="9" y="11" width="5" height="15" rx="1.6" fill="currentColor"/>
-        <rect x="16" y="5" width="5" height="21" rx="1.6" fill="currentColor"/>
-        <rect x="23" y="1.5" width="4" height="24.5" rx="1.6" fill="currentColor" opacity=".38"/>
+      <svg width={size} height={size} viewBox="0 0 40 40" fill="none" aria-hidden="true" style={{flexShrink:0}}>
+        <rect x="1" y="1" width="8" height="8" rx="1.6" fill="currentColor" opacity="1"/>
+        <rect x="1" y="11" width="8" height="8" rx="1.6" fill="currentColor" opacity="1"/>
+        <rect x="11" y="11" width="8" height="8" rx="1.6" fill="currentColor" opacity="0.85"/>
+        <rect x="1" y="21" width="8" height="8" rx="1.6" fill="currentColor" opacity="1"/>
+        <rect x="11" y="21" width="8" height="8" rx="1.6" fill="currentColor" opacity="0.85"/>
+        <rect x="21" y="21" width="8" height="8" rx="1.6" fill="currentColor" opacity="0.65"/>
+        <rect x="1" y="31" width="8" height="8" rx="1.6" fill="currentColor" opacity="1"/>
+        <rect x="11" y="31" width="8" height="8" rx="1.6" fill="currentColor" opacity="0.85"/>
+        <rect x="21" y="31" width="8" height="8" rx="1.6" fill="currentColor" opacity="0.65"/>
+        <rect x="31" y="31" width="8" height="8" rx="1.6" fill="currentColor" opacity="0.45"/>
       </svg>
       <span aria-hidden="true" style={{display:"flex",flexDirection:"column",fontWeight:700,fontSize:fs,letterSpacing:"-.02em",lineHeight:.98,textAlign:"left",whiteSpace:"nowrap"}}>
         <span>Inventory</span><span style={{opacity:.72}}>Forecast</span>
