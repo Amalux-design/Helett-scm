@@ -3895,7 +3895,7 @@ const AUTH_SHEET_ID="1Va-jdWfO2dmO6R-QCnkg9S2YqIWacx9pKfkW3Th-RGw";
 const AUTH_KEY="fba_auth";
 // Login backend: the Apps Script web app in apps-script/auth.gs (bound to the PRIVATE auth sheet).
 // Paste its /exec URL here. While this is empty the app uses the old public "Users" tab instead.
-const AUTH_URL="";
+const AUTH_URL="https://script.google.com/macros/s/AKfycbzZ1XsKGGT8c3rmDHCTU8Zu5s0bKze2JDjD__eYw9MtHdQzEaj_0DD4fb2wWusDBDrV/exec";
 async function authCall(body){
   const r=await fetch(AUTH_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)});
   if(!r.ok) throw new Error(`Login service error (HTTP ${r.status})`);
