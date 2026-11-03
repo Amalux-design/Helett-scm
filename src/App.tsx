@@ -3570,10 +3570,14 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
                 }}>{fc}</span>
               ))}
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8}}>
               <div>
                 <div style={{fontSize:9,color:t.text3,textTransform:"uppercase",letterSpacing:".3px",marginBottom:3}} title="Units already in this cluster's FCs, from the Ledger">Current stock</div>
                 <div style={{fontSize:14,fontWeight:700,color:t.text,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{fmt(r.currentStock)}</div>
+              </div>
+              <div>
+                <div style={{fontSize:9,color:t.text3,textTransform:"uppercase",letterSpacing:".3px",marginBottom:3}} title="Days of inventory = Current stock ÷ units/day demand in this cluster">DOI (days)</div>
+                <div style={{fontSize:14,fontWeight:700,color:t.text,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{r.dailyDemand>0?fmt(r.currentStock/r.dailyDemand,0):"—"}</div>
               </div>
               <div>
                 <div style={{fontSize:9,color:t.text3,textTransform:"uppercase",letterSpacing:".3px",marginBottom:3}} title="Target = demand here × FBA Cover Days">Target stock</div>
