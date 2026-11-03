@@ -5,6 +5,8 @@ import { SKU_MAP } from "./data/skuMap.js";
 import { FC_CITY, fcLabel, FC_REGION } from "./data/fcMapping.js";
 import { STATE_TO_REGION } from "./data/stateRegion.js";
 import { CLUSTERS, stateNameToCode, clusterForState, stateCodeToName } from "./data/fcStateMapping.js";
+import PurchasePlanChart from "./purchasePlan/PurchasePlanChart";
+import { trendRatio, getStartStock, getPlacedPoUnits } from "./purchasePlan/planLogic";
 import { CITY_ALIAS, normalizeCity } from "./data/cityNormalizer.js";
 import { DARK, LIGHT } from "./data/themes.js";
 import { LOGO_ICON, NAV_ICONS } from "./data/icons.jsx";
@@ -658,6 +660,7 @@ function computeAll(inv, salesByAsinDay, fcData, settings, anchorDate, regionalS
     }
     res[asin]={
       ...inv[asin], velocity:vel, planning, forecast, forecastWithPO, fcPlanning,
+      effectiveStock, // toggle-aware planning stock (FBA/FC/Transfer/Inbound per settings + manual Add Inbound)
       hasFCData:!!fcData[asin],
       defaultTransitDays,
       skuSeaLT, skuAirLT,
@@ -686,6 +689,11 @@ function computeAll(inv, salesByAsinDay, fcData, settings, anchorDate, regionalS
 /* ═══════════════════════════════════════════════════════════════
    SHARED SMALL COMPONENTS
 ═══════════════════════════════════════════════════════════════ */
+function sentence(s){
+  if(!s) return s;
+  const l=String(s).toLowerCase();
+  return (l.charAt(0).toUpperCase()+l.slice(1)).replace(/\b(fba|fc|po|doi|lis|sku|asin|ok)\b/gi,m=>m.toUpperCase());
+}
 function PBadge({action,priority,purchasePct=0,replenishPct=0,t}){
   // Colour by urgency % — applied to text only, not badge background
   function pctColor(pct){
@@ -701,11 +709,11 @@ function PBadge({action,priority,purchasePct=0,replenishPct=0,t}){
     (action==="PURCHASE REQUIRED"||action==="REPLENISH FBA"||action==="STOCKOUT");
   if(isCombined){
     const purchaseFirst = purchasePct >= replenishPct;
-    const pWord=<span style={{color:pctColor(purchasePct)}}>Purchase</span>;
-    const rWord=<span style={{color:pctColor(replenishPct)}}>Replenish</span>;
+    const pWord=<span>Purchase</span>;
+    const rWord=<span>Replenish</span>;
     const title=`Purchase: ${purchasePct}% · Replenish: ${replenishPct}%`;
     return(
-      <span className={`badge ${containerC}`} title={title} style={{color:"inherit",gap:0}}>
+      <span className={`badge ${containerC}`} title={title} style={{gap:6}}>
         {purchaseFirst?pWord:rWord}
         <span style={{opacity:.55}}> + </span>
         {purchaseFirst?rWord:pWord}
@@ -716,17 +724,24 @@ function PBadge({action,priority,purchasePct=0,replenishPct=0,t}){
   const singlePct  = purchasePct||replenishPct;
   const textColor  = singlePct>0&&t ? pctColor(singlePct) : undefined;
   const dotC=priority==="critical"?"r":priority==="high"?"y":action==="OVERSTOCK"||action==="HOLD"?"b":"g";
-  return<span className={`badge ${containerC}`}><span className={`dot ${dotC}`}></span><span style={textColor?{color:textColor}:{}}>{action||"OK"}</span></span>;
+  return<span className={`badge ${containerC}`}><span className={`dot ${dotC}`}></span><span>{sentence(action||"OK")}</span></span>;
 }
 function DOI({doi,t}){
   if(!isFinite(doi)||doi>999)return<span style={{color:t.green}}>∞</span>;
   const col=doi<7?t.red:doi<21?t.yellow:t.green;
   return<span style={{color:col,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{fmt(doi,1)}d</span>;
 }
+// Trend as quiet text: only the arrow carries the colour
+function TrendLabel({trend,t,size=12}){
+  if(!trend||trend==="—") return<span style={{color:t.text3,fontSize:size}}>—</span>;
+  const m=String(trend).match(/^(\S+)\s+(.*)$/);
+  const glyph=m?m[1]:"", label=m?m[2]:trend;
+  return<span style={{display:"inline-flex",alignItems:"center",gap:5,whiteSpace:"nowrap",fontSize:size,fontWeight:500,color:t.text2,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
+    {glyph&&<span style={{color:trendColor(trend,t),fontWeight:700}}>{glyph}</span>}{label}
+  </span>;
+}
 function TrendBadge({avg7,avg30,t}){
-  const trend=calcTrend(avg7,avg30);
-  if(trend==="—") return<span style={{color:t.text3,fontSize:10,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>—</span>;
-  return<span style={{fontSize:10,color:trendColor(trend,t),fontFamily:"'Instrument Sans',system-ui,sans-serif",whiteSpace:"nowrap"}}>{trend}</span>;
+  return<TrendLabel trend={calcTrend(avg7,avg30)} t={t} size={12}/>;
 }
 
 function DropZone({label,sub,onFile,loaded,fileName}){
@@ -795,14 +810,14 @@ function IndiaHeatmap({ regionalSales, fcPlanning, settings, velocity, t }) {
     );
   }
 
-  /* Status palette — solid, no transparency */
+  /* Status palette — meaning lives in the dot only */
   const STATUS = {
-    STOCKOUT: { label:"Stockout", icon:"", c:t.red, bg:t.surface, border:t.border },
-    CRITICAL: { label:"Critical", icon:"", c:t.red, bg:t.surface, border:t.border },
-    LOW:      { label:"At Risk",  icon:"", c:t.yellow, bg:t.surface, border:t.border },
-    HEALTHY:  { label:"Healthy",  icon:"", c:t.green, bg:t.surface, border:t.border },
-    SURPLUS:  { label:"Surplus",  icon:"⬆",  c:t.purple, bg:t.surface, border:t.border },
-    NONE:     { label:"No Data",  icon:"—",  c:t.text3,    bg:t.surface, border:t.border },
+    STOCKOUT: { label:"Stockout", c:t.red },
+    CRITICAL: { label:"Critical", c:t.red },
+    LOW:      { label:"At risk",  c:t.orange },
+    HEALTHY:  { label:"Healthy",  c:t.green },
+    SURPLUS:  { label:"Surplus",  c:t.text2 },
+    NONE:     { label:"No data",  c:t.text3 },
   };
 
   function RegBlock({ region }) {
@@ -835,110 +850,51 @@ function IndiaHeatmap({ regionalSales, fcPlanning, settings, velocity, t }) {
       st = st = STATUS.SURPLUS;
     }
 
+    const MONO = "'IBM Plex Mono',ui-monospace,Consolas,monospace";
     return (
       <div style={{
-        background: t.surface,
-        border: `1px solid ${t.border}`,
-        borderLeft: `3px solid ${st.c}`,
-        borderRadius: 12,
-        padding: "16px 18px",
-        display:"flex",
-        flexDirection:"column",
-        gap:0,
+        background: t.surface2, border: `1px solid ${t.border}`, borderRadius: 12,
+        padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10,
       }}>
-
-        {/* ── Header: region name + status badge ── */}
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-          <span style={{
-            fontSize:14,fontWeight:600,
-            color:t.text,fontFamily:"'Instrument Sans',system-ui,sans-serif",
-          }}>{region}</span>
-          <span style={{display:"flex",alignItems:"center",gap:6,fontSize:12,fontWeight:500,color:st.c}}>
-            <span className="dot" style={{background:st.c}}></span>{st.icon} {st.label}
-          </span>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
+          <span style={{fontSize:15,fontWeight:600,color:t.text}}>{region}</span>
+          <span className="badge" style={{["--bc" as any]:st.c}}>{st.label}</span>
         </div>
 
-        {/* ── Demand number ── */}
-        <div style={{marginBottom:8}}>
-          <span style={{
-            fontSize:28,fontWeight:800,fontFamily:"'Instrument Sans',system-ui,sans-serif",
-            color:t.text,lineHeight:1,
-          }}>{fmt(demand30)}</span>
-          <span style={{fontSize:10,color:t.text3,marginLeft:8}}>demand · {p}% of total</span>
+        <div style={{display:"flex",alignItems:"baseline",gap:8,flexWrap:"wrap"}}>
+          <span style={{fontSize:28,fontWeight:600,fontFamily:MONO,color:t.text,lineHeight:1,letterSpacing:"-.5px"}}>{fmt(demand30)}</span>
+          <span style={{fontSize:12.5,color:t.text3}}>units demand · {p}% of total</span>
         </div>
 
-        {/* ── Stock vs target line ── */}
         {hasStock && (
-          <div style={{
-            fontSize:11,fontFamily:"'Instrument Sans',system-ui,sans-serif",
-            marginBottom:10,color:t.text2,
-          }}>
-            <span style={{color:stock>0?st.c:"#e05252",fontWeight:700}}>{fmt(stock)}</span>
-            <span style={{color:t.text3}}> in stock</span>
-            {targetStock > 0 && <>
-              <span style={{color:t.text3}}>  /  target </span>
-              <span style={{color:t.text,fontWeight:600}}>{fmt(targetStock)}</span>
-            </>}
+          <div style={{fontSize:13,color:t.text2}}>
+            <strong style={{color:stock>0?t.text:t.red,fontWeight:700}}>{fmt(stock)}</strong> in stock
+            {targetStock > 0 && <> of <strong style={{color:t.text,fontWeight:700}}>{fmt(targetStock)}</strong> target</>}
             {doi !== null && <span style={{color:t.text3}}> · {fmt(doi,1)}d cover</span>}
           </div>
         )}
 
-        {/* ── Progress bar ── */}
         {hasStock && targetStock > 0 && (
-          <div style={{marginBottom:10}}>
-            <div style={{
-              height:6,background:t.surface2,borderRadius:4,
-              overflow:"hidden",marginBottom:6,
-            }}>
-              <div style={{
-                height:"100%",width:barFill+"%",
-                background:st.c,borderRadius:4,
-                transition:"width .4s ease",
-              }}/>
+          <div>
+            <div style={{height:6,background:t.border,borderRadius:3,overflow:"hidden"}}>
+              <div style={{height:"100%",width:barFill+"%",background:st.c,borderRadius:3,transition:"width .4s ease"}}/>
             </div>
-            <span style={{
-              fontSize:9,color:st.c,fontFamily:"'Instrument Sans',system-ui,sans-serif",fontWeight:600,
-            }}>
-              {coveragePct}% of target reached
-            </span>
+            <div style={{fontSize:12,color:t.text3,marginTop:6}}>{coveragePct}% of target</div>
           </div>
         )}
 
-        {/* ── Action line ── */}
         {hasBothData && gap !== null && (
-          <div style={{
-            display:"flex",
-            alignItems:"center",
-            justifyContent: gap <= 0 ? "flex-end" : "space-between",
-            padding:"7px 10px",
-            borderRadius:6,
-            background:st.c+"14",
-            border:`1px solid ${st.c}30`,
-            marginTop:"auto",
-          }}>
-            {gap > 0 && (
-              <span style={{
-                fontSize:12,fontWeight:600,color:st.c,
-              }}>⚠ Shortfall</span>
-            )}
-            <span style={{
-              fontSize:12,fontWeight:700,
-              fontFamily:"'Instrument Sans',system-ui,sans-serif",color:st.c,
-            }}>
-              {gap > 0
-                ? `Send ${fmt(gap)} units`
-                : `${fmt(Math.abs(gap))} units excess`}
-            </span>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",paddingTop:10,borderTop:`1px solid ${t.border}`,marginTop:"auto",fontSize:13}}>
+            <span style={{color:t.text3}}>{gap > 0 ? "Shortfall" : "Excess"}</span>
+            <strong style={{color:gap > 0 ? t.text : t.text2,fontWeight:700}}>
+              {gap > 0 ? `Send ${fmt(gap)} units` : `${fmt(Math.abs(gap))} units`}
+            </strong>
           </div>
         )}
 
-        {/* No stock — nudge to upload ledger */}
         {!hasStock && demand30 > 0 && (
-          <div style={{
-            fontSize:9,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif",
-            marginTop:4,padding:"5px 8px",background:t.surface,borderRadius:6,
-          }}>
-            Upload Ledger CSV to see FC stock & gap
+          <div style={{fontSize:12,color:t.text3,paddingTop:8,borderTop:`1px solid ${t.border}`}}>
+            Upload Ledger CSV to see FC stock and gap
           </div>
         )}
       </div>
@@ -947,49 +903,42 @@ function IndiaHeatmap({ regionalSales, fcPlanning, settings, velocity, t }) {
 
   /* ── Legend ── */
   const legendItems = [
-    {label:"Stockout / Critical",c:"#e05252"},
-    {label:"At Risk  60–90%",   c:"#d4912b"},
-    {label:"Healthy  90–130%",  c:"#27ae60"},
-    {label:"Surplus  >130%",    c:"#7c63d4"},
+    {label:"Stockout / critical",    c:t.red},
+    {label:"At risk, 60–90% of target", c:t.orange},
+    {label:"Healthy, 90–130%",       c:t.green},
+    {label:"Surplus, over 130%",     c:t.text2},
   ];
 
   return (
     <div>
-      {/* Status legend */}
-      <div style={{display:"flex",gap:14,marginBottom:10,flexWrap:"wrap",alignItems:"center"}}>
+      <div style={{display:"flex",gap:"6px 18px",marginBottom:12,flexWrap:"wrap",alignItems:"center",fontSize:12.5,color:t.text2}}>
         {legendItems.map(l=>(
-          <div key={l.label} style={{display:"flex",alignItems:"center",gap:5,fontSize:9,
-            fontFamily:"'Instrument Sans',system-ui,sans-serif",color:t.text3}}>
-            <div style={{width:8,height:8,borderRadius:2,background:l.c,flexShrink:0}}/>
+          <span key={l.label} style={{display:"inline-flex",alignItems:"center",gap:7}}>
+            <span style={{width:8,height:8,borderRadius:"50%",background:l.c,flexShrink:0}}/>
             {l.label}
-          </div>
+          </span>
         ))}
-        <span style={{marginLeft:"auto",fontSize:9,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
+        <span style={{marginLeft:"auto",color:t.text3}}>
           target = demand/day × <strong style={{color:t.text}}>{coverDays}d</strong> cover
         </span>
       </div>
 
-      {/* North — full width */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr",gap:8,marginBottom:8}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr",gap:10,marginBottom:10}}>
         <RegBlock region="North"/>
       </div>
-      {/* West | Central | East — 3 col */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:8}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:10,marginBottom:10}}>
         <RegBlock region="West"/>
         <RegBlock region="Central"/>
         <RegBlock region="East"/>
       </div>
-      {/* South — full width */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr",gap:8}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr",gap:10}}>
         <RegBlock region="South"/>
       </div>
 
-      {/* Footer info */}
-      <div style={{marginTop:8,fontSize:9,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif",
-        display:"flex",gap:12,flexWrap:"wrap"}}>
+      <div style={{marginTop:12,fontSize:12,color:t.text3,display:"flex",gap:"4px 14px",flexWrap:"wrap"}}>
         <span>Total demand: {fmt(totalUnits)} units (30d)</span>
-        {unknownUnits > 0 && <span>· Unclassified: {fmt(unknownUnits)} units</span>}
-        {!hasStock && <span style={{color:t.yellow}}>· Upload Ledger to enable stock & gap analysis</span>}
+        {unknownUnits > 0 && <span>Unclassified: {fmt(unknownUnits)} units</span>}
+        {!hasStock && <span style={{color:t.orange}}>Upload Ledger to enable stock and gap analysis</span>}
       </div>
     </div>
   );
@@ -1623,7 +1572,7 @@ function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,s
           {skus.filter(d=>picked.has(d.asin)).map(d=>(
             <span key={d.asin} style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:10,color:t.text,background:t.surface,border:`1px solid ${t.border2}`,borderRadius:4,padding:"2px 7px",fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
               {d.finalName}
-              <span style={{cursor:"pointer",color:t.text3}} onClick={()=>setPicked(prev=>{const nx=new Set(prev);nx.delete(d.asin);return nx;})}>✕</span>
+              <span className="ic-btn" style={{color:t.text3,padding:"0 4px"}} onClick={()=>setPicked(prev=>{const nx=new Set(prev);nx.delete(d.asin);return nx;})}>✕</span>
             </span>
           ))}
         </div>
@@ -1658,7 +1607,7 @@ function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,s
             <td onClick={e=>togglePick(d.asin,e)}><input type="checkbox" checked={picked.has(d.asin)} onChange={()=>{}} style={{cursor:"pointer"}}/></td>
             <td style={{textAlign:"left"}}><div className="tn">{d.finalName}</div><div className="ta">{d.sellerSku}</div></td>
             <td style={{textAlign:"left"}} className="ta">{d.asin}</td>
-            <td><span style={{fontSize:10,color:trendColor(calcTrend(d.velocity.avg7,d.velocity.avg30),t),fontFamily:"'Instrument Sans',system-ui,sans-serif",whiteSpace:"nowrap"}}>{calcTrend(d.velocity.avg7,d.velocity.avg30)}</span></td>
+            <td><TrendLabel trend={calcTrend(d.velocity.avg7,d.velocity.avg30)} t={t}/></td>
             <td style={{fontWeight:700,color:hasPriorityDemand?t.accent:t.text}} title={hasPriorityDemand?`Priority Demand override active (weighted avg is ${fmt(d.velocity.demand,2)})`:undefined}>{fmt(displayDemand,2)}</td>
             <td>{fmt(d.currentStock)}</td><td>{fmt(d.fbaAvailable)}</td><td>{fmt(d.fcSellable)}</td>
             <td style={{color:extraInboundQty>0?t.accent:undefined,fontWeight:extraInboundQty>0?700:undefined}} title={extraInboundQty>0?`Includes +${fmt(extraInboundQty)} Add Inbound (file value is ${fmt(d.inbound)})`:undefined}>{fmt(displayInbound)}</td>
@@ -1677,8 +1626,8 @@ function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,s
             })()}
             <td>
               {hasAnyManual&&(
-                <span onClick={e=>resetSku(d.asin,e)} title="Reset this SKU's Purchased Units, Priority Demand and Add Inbound"
-                  style={{cursor:"pointer",color:t.text3,fontSize:13,padding:"2px 4px"}}>↺</span>
+                <span className="ic-btn" onClick={e=>resetSku(d.asin,e)} title="Reset this SKU's Purchased Units, Priority Demand and Add Inbound"
+                  style={{color:t.text3,fontSize:13,padding:"2px 6px"}}>↺</span>
               )}
             </td>
             <td style={{padding:"0 14px 0 4px",width:36,textAlign:"right"}}>
@@ -2108,9 +2057,7 @@ function LISView({data, settings, setSettings, onSku, t}) {
                       </span>
                     </td>
                     <td style={TD}>
-                      <span style={{color:tc,fontFamily:"'Instrument Sans',system-ui,sans-serif",fontSize:11,fontWeight:600,whiteSpace:"nowrap"}}>
-                        {r.trend||"—"}
-                      </span>
+                      <TrendLabel trend={r.trend} t={t}/>
                     </td>
                     <td style={TD}>
                       <span style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:12,fontWeight:500,color:sc,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
@@ -2433,7 +2380,7 @@ function ProcurementForecast({data, ltData, anchorDate, openPoMap, settings, t})
                     </td>
                     {/* Trend */}
                     <td style={TD}>
-                      <span style={{fontSize:10,color:trendColor(d.trend,t),fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{d.trend}</span>
+                      <TrendLabel trend={d.trend} t={t}/>
                     </td>
 
                     {/* Inventory group */}
@@ -2801,6 +2748,7 @@ const JUMP_SECTIONS = [
   {id:"sec-active-pos", label:"Active Purchase Orders"},
   {id:"sec-shipment-plan", label:"Shipment Plan"},
   {id:"sec-recommended-actions", label:"Recommended Actions"},
+  {id:"sec-purchase-plan", label:"Purchase Plan"},
   {id:"sec-fc-breakdown", label:"FC Breakdown"},
   {id:"sec-fba-replenishment", label:"FBA Replenishment Recommendation"},
   {id:"sec-top-cities", label:"Top Cities by Demand"},
@@ -3167,11 +3115,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
 
     {/* Header */}
     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-      <div>
-        <div style={{fontSize:16,fontWeight:700,color:t.text,marginBottom:2}}>{sku.finalName}</div>
-        <div style={{fontSize:10,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{sku.sellerSku} · {sku.asin}</div>
-      </div>
-      <div style={{marginLeft:"auto",display:"flex",gap:8,alignItems:"center"}}>
+      <div style={{display:"flex",gap:8,alignItems:"center"}}>
         <PBadge action={pl.action} priority={pl.priority} purchasePct={pl.purchasePct||0} replenishPct={pl.replenishPct||0} t={t}/>
       </div>
     </div>
@@ -3193,7 +3137,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
       ].map(k=>(
         <div key={k.l} className="kc">
           <div className="kl">{k.l}</div>
-          <div className="kv" style={{color:k.col}}>{k.v}</div>
+          <div className="kv" style={{color:k.col}}>{k.l==="Trend"?<TrendLabel trend={k.v} t={t} size={20}/>:k.v}</div>
         </div>
       ))}
     </div>
@@ -3234,10 +3178,10 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
       const poRows = skuPoRows;
       const totalOpenQty = totalOpenPoQty;
       const STATUS_COLORS = {
-        "in production": "#5BA8E0",
-        "production completed": "#9C7FE0",
-        "in transit":    t.yellow,
-        "ordered":       t.text2,
+        "in production": t.text2,
+        "production completed": t.green,
+        "in transit":    t.orange,
+        "ordered":       t.text3,
         "open":          t.green,
         "pending":       t.text3,
         "partially shipped": t.orange,
@@ -3291,11 +3235,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
                           <td style={{padding:"7px 10px",fontSize:11,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif",textAlign:"left"}}>{poDate||"—"}</td>
                           <td style={{padding:"7px 10px",fontSize:11,fontFamily:"'Instrument Sans',system-ui,sans-serif",color:t.text,fontWeight:600,textAlign:"left"}}>{poNo}</td>
                           <td style={{padding:"7px 10px",textAlign:"left"}}>
-                            <span style={{
-                              display:"inline-block",padding:"3px 9px",borderRadius:5,fontSize:11,
-                              fontWeight:600,background:sc+"22",color:sc,
-                              border:`1px solid ${sc}44`,fontFamily:"'Instrument Sans',system-ui,sans-serif",whiteSpace:"nowrap",
-                            }}>{st||"—"}</span>
+                            {st?<span className="badge" style={{["--bc" as any]:sc}}>{st}</span>:<span style={{color:t.text3}}>—</span>}
                           </td>
                           <td style={{padding:"7px 10px",fontFamily:"'Instrument Sans',system-ui,sans-serif",fontSize:12,fontWeight:700,color:t.accent,textAlign:"left"}}>{qty>0?fmt(qty):"—"}</td>
                           <td style={{padding:"7px 10px",fontSize:11,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif",textAlign:"left"}}>{comp||"—"}</td>
@@ -3527,6 +3467,15 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
       {/* Sea/Air split now lives once, in the Shipment Plan card above — no duplicate here */}
     </div>
 
+    {/* Purchase plan chart — candle-style shipment split */}
+    <PurchasePlanChart key={sku.asin}
+      stock0={getStartStock(sku.effectiveStock ?? sku.currentStock)}
+      poUnits={getPlacedPoUnits(currentPoUnits, totalOpenPoQty, settings.inclPO===true)} d0={demand}
+      r={trendRatio(vel.avg7, vel.avg30)}
+      LT={effectiveLT} airLT={effectiveAirLT||0} hasAir={hasAir}
+      S={settings.safetyDays}
+      anchor={sku._anchor||new Date()} t={t}/>
+
     {/* FC Detail */}
     {hasFCData&&fcPlanning&&<div className="card" id="sec-fc-breakdown" style={{marginBottom:10}}>
       <div className="ch">FC Breakdown</div>
@@ -3561,7 +3510,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
                   }}
                 />
               </td>
-              <td><span className={`badge${fc.status==="stockout"?" solid":""}`} style={{["--bc" as any]:FC_STATUS_COLOR[fc.status]}}>{fc.status.toUpperCase()}</span></td>
+              <td><span className={`badge${fc.status==="stockout"?" solid":""}`} style={{["--bc" as any]:FC_STATUS_COLOR[fc.status]}}>{sentence(fc.status)}</span></td>
             </tr>
           ))}</tbody>
         </table>
@@ -3573,7 +3522,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
           const finalNeeded = Math.max(0, r.needed - inboundOffset);
           return(
           <div key={r.fc} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",background:t.surface2,borderRadius:7,border:`1px solid ${t.border}`,marginBottom:5,fontSize:11}}>
-            <span className={`badge${r.status==="stockout"?" solid":""}`} style={{["--bc" as any]:FC_STATUS_COLOR[r.status]}}>{r.status.toUpperCase()}</span>
+            <span className={`badge${r.status==="stockout"?" solid":""}`} style={{["--bc" as any]:FC_STATUS_COLOR[r.status]}}>{sentence(r.status)}</span>
             <span style={{flex:1,color:t.text}}>{r.label}</span>
             <span style={{color:t.text3}}>DOI: {isFinite(r.doi)?fmt(r.doi,1)+"d":"∞"}</span>
             {inboundOffset>0&&<span style={{color:t.text3,fontSize:10,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>−{fmt(inboundOffset)} inbound</span>}
@@ -4547,7 +4496,9 @@ function FBAPlannerApp({onLogout,authEmail}:{onLogout?:()=>void;authEmail?:strin
           <div style={{overflow:"hidden",minWidth:0}}>
             <div className="tb-title">{pageTitle}</div>
             {data&&<div className="tb-sub">
-              {Object.keys(data).length} SKUs · Safety {settings.safetyDays}d · +{settings.totalLeadTime}d delay · {anchorLabel}
+              {tab==="detail"&&selSku&&data[selSku]
+                ? <>{data[selSku].sellerSku} · {data[selSku].asin}</>
+                : <>{Object.keys(data).length} SKUs · Safety {settings.safetyDays}d · +{settings.totalLeadTime}d delay · {anchorLabel}</>}
             </div>}
           </div>
           <div className="tb-r">
@@ -4557,9 +4508,11 @@ function FBAPlannerApp({onLogout,authEmail}:{onLogout?:()=>void;authEmail?:strin
                 {rawData?.ledgerDate&&<> · Ledger {rawData.ledgerDate.toLocaleDateString("en-IN",{day:"2-digit",month:"short"})}</>}
               </span>
             )}
+            <div className="tb-group">
             <button className="tb-btn pri" onClick={()=>dataInputRef.current?.refreshSheets()} disabled={loading} title="Re-fetch data from Google Sheets">{loading?"Refreshing…":"⟳ Refresh"}</button>
             <button className="tb-btn danger" onClick={askReset} title="Reset Purchased Units, Priority Demand and Add Inbound for every SKU back to default">↺ Reset Values</button>
             <button className="tb-btn tb-icon" onClick={toggleTheme} aria-label={dark?"Switch to light theme":"Switch to dark theme"} title={dark?"Light theme":"Dark theme"}>{dark?<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>}</button>
+            </div>
           </div>
         </div>
         <div className="content">

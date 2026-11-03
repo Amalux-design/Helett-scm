@@ -117,9 +117,9 @@ export default function FCMap({ t }) {
         title="Enlarge map"
         style={{
           position: "absolute", top: 8, right: 8, zIndex: 20,
-          background: t.surface, border: `1px solid ${t.border}`, borderRadius: 6,
-          padding: "4px 8px", fontSize: 11, cursor: "pointer", color: t.text2,
-          fontFamily: "'Inter',system-ui,sans-serif",
+          background: t.surface, border: `1px solid ${t.border2}`, borderRadius: 999,
+          height: 32, padding: "0 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", color: t.text,
+          fontFamily: "'Instrument Sans',system-ui,sans-serif", display: "inline-flex", alignItems: "center", gap: 6,
         }}
       >⛶ Enlarge</button>
 

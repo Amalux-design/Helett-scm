@@ -90,14 +90,16 @@ button,input,select,textarea{font-family:${SANS}}
 .tb-meta{font-size:13px;color:${t.text3};white-space:nowrap;margin-right:6px}
 
 /* ── BADGES (24px, 8px radius, no dots, outline only) ── */
-.badge{--bc:${t.text};display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:8px;font-size:13px;font-weight:600;white-space:nowrap;border:1px solid var(--bc)!important;background:color-mix(in srgb,var(--bc) 14%,${t.surface})!important;color:var(--bc)!important}
+.badge{--bc:${t.text3};font-family:${SANS};display:inline-flex;align-items:center;gap:8px;height:26px;padding:0 12px;border-radius:999px;font-size:13px;font-weight:600;white-space:nowrap;border:1px solid ${t.border2}!important;background:transparent!important;color:${t.text}!important}
+.badge::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--bc);flex-shrink:0}
 .badge *{color:inherit!important;background:transparent!important}
 .badge .dot{display:none}
 .badge.bg{--bc:${t.green}}
 .badge.br{--bc:${t.red}}
 .badge.by,.badge.bpr{--bc:${t.orange}}
 .badge.bgr{--bc:${t.text3}}
-.badge.solid{background:var(--bc)!important;color:#fff!important;border-color:var(--bc)!important}
+.badge.bb{--bc:${t.text2}}
+.badge.solid{background:color-mix(in srgb,var(--bc) 12%,transparent)!important;border-color:var(--bc)!important}
 .dot{width:6px;height:6px;border-radius:50%;display:inline-block;flex-shrink:0}
 .dot.r{background:${t.red}}.dot.y{background:${t.yellow}}.dot.g{background:${t.green}}.dot.b{background:${t.accent}}.dot.gr{background:${t.text3}}.dot.p{background:${t.orange}}
 .br,.by,.bg,.bb,.bgr,.bpr{font-weight:500}
@@ -310,4 +312,24 @@ td:not(:first-child){font-weight:500}
 .tb-btn.pri:hover{background:${t.surface2};border-color:${t.text3};opacity:1}
 .tb-btn.danger,.btn.bdl{background:${t.redBg};color:${t.red};border-color:${t.redBdr}}
 .tb-btn.danger:hover,.btn.bdl:hover{background:${t.red};color:${t.onInk==="#f5f6f7"?"#fff":"#12161c"};border-color:${t.red}}
+
+/* pill Back button + capsule action group in the top bar */
+.bk{height:36px;border-radius:999px;padding:0 18px;font-size:14px;margin-bottom:12px}
+.tb-group{display:inline-flex;align-items:center;height:36px;border:1px solid ${t.border2};border-radius:999px;background:${t.surface};overflow:hidden}
+.tb-group .tb-btn,.tb-group .tb-btn.pri,.tb-group .tb-btn.danger{height:100%;border:0;border-radius:0;background:transparent;color:${t.text};padding:0 16px;font-size:14px;gap:7px;opacity:1}
+.tb-group .tb-btn + .tb-btn{border-left:1px solid ${t.border}}
+.tb-group .tb-btn:hover{background:${t.surface2}}
+.tb-group .tb-btn.danger{color:${t.red}}
+.tb-group .tb-btn.danger:hover{background:${t.redBg}}
+.tb-group .tb-icon{width:42px;padding:0}
+
+/* hover for every inline-styled button / icon button / switch / chart handle */
+button[style]:not(:disabled):hover{background-image:linear-gradient(color-mix(in srgb,currentColor 12%,transparent),color-mix(in srgb,currentColor 12%,transparent))!important}
+button[style]:not(:disabled):active{transform:translateY(.5px)}
+.ic-btn{cursor:pointer;border-radius:6px;transition:background .12s,color .12s}
+.ic-btn:hover{background:${t.surface2};color:${t.text}!important}
+input[type=checkbox]:not(:disabled):hover{border-color:${t.text3}}
+.pp-trim:hover{filter:drop-shadow(0 0 3px rgba(255,255,255,.85))}
+.pp-bar{transition:filter .12s}
+.pp-bar:hover{filter:brightness(1.14)}
 `;}
