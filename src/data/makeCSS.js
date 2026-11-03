@@ -94,6 +94,8 @@ button,input,select,textarea{font-family:${SANS}}
 .badge::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--bc);flex-shrink:0}
 .badge *{color:inherit!important;background:transparent!important}
 .badge .dot{display:none}
+.badge.nodot::before{display:none}
+.badge .tg{color:var(--bc)!important;font-weight:700;letter-spacing:-1px}
 .badge.bg{--bc:${t.green}}
 .badge.br{--bc:${t.red}}
 .badge.by,.badge.bpr{--bc:${t.orange}}

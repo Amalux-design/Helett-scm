@@ -731,12 +731,14 @@ function DOI({doi,t}){
   const col=doi<7?t.red:doi<21?t.yellow:t.green;
   return<span style={{color:col,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{fmt(doi,1)}d</span>;
 }
-// Trend as the same minimal pill as every status: coloured dot, neutral label
+// Trend keeps its arrows (coloured) and sits in the same pill shape as every status
 function TrendLabel({trend,t,size=12}){
   if(!trend||trend==="—") return<span style={{color:t.text3,fontSize:size}}>—</span>;
   const m=String(trend).match(/^(\S+)\s+(.*)$/);
-  const label=m?m[2]:trend;
-  return<span className="badge" style={{["--bc" as any]:trendColor(trend,t)}} title={trend}>{sentence(label)}</span>;
+  const glyph=m?m[1]:"", label=m?m[2]:trend;
+  return<span className="badge nodot" style={{["--bc" as any]:trendColor(trend,t)}}>
+    {glyph&&<span className="tg">{glyph}</span>}{label}
+  </span>;
 }
 function TrendBadge({avg7,avg30,t}){
   return<TrendLabel trend={calcTrend(avg7,avg30)} t={t} size={12}/>;
