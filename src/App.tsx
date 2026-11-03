@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, forwardRef, useImperativeHandle, lazy, Suspense, Children, isValidElement } from "react";
 import { createPortal, flushSync } from "react-dom";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, BarChart, Bar, Cell } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, BarChart, Bar, Cell, ComposedChart, Area } from "recharts";
 import { SKU_MAP } from "./data/skuMap.js";
 import { FC_CITY, fcLabel, FC_REGION } from "./data/fcMapping.js";
 import { STATE_TO_REGION } from "./data/stateRegion.js";
@@ -1163,7 +1163,6 @@ function SBar({settings,setSettings,t,isTop}){
             style={{marginRight:4,accentColor:"currentColor"}}
           />Include FBA
         </label>
-        &nbsp;&nbsp;
         <label style={{cursor:"pointer",userSelect:"none",display:"inline-flex",alignItems:"center"}}>
           <input type="checkbox"
             checked={local.inclTransfer!==false}
@@ -1171,7 +1170,6 @@ function SBar({settings,setSettings,t,isTop}){
             style={{marginRight:4,accentColor:"currentColor"}}
           />Include FC Transfer
         </label>
-        &nbsp;&nbsp;
         <label style={{cursor:"pointer",userSelect:"none",display:"inline-flex",alignItems:"center"}}>
           <input type="checkbox"
             checked={local.inclFC!==false}
@@ -1179,7 +1177,6 @@ function SBar({settings,setSettings,t,isTop}){
             style={{marginRight:4,accentColor:"currentColor"}}
           />Include FC
         </label>
-        &nbsp;&nbsp;
         <label style={{cursor:"pointer",userSelect:"none",display:"inline-flex",alignItems:"center"}}>
           <input type="checkbox"
             checked={local.inclInbound!==false}
@@ -1187,7 +1184,6 @@ function SBar({settings,setSettings,t,isTop}){
             style={{marginRight:4,accentColor:"currentColor"}}
           />Include Inbound
         </label>
-        &nbsp;&nbsp;
         <label style={{cursor:"pointer",userSelect:"none",display:"inline-flex",alignItems:"center"}} title="Forecast-only: adds Purchased Units + open PO qty to stock for DOI / Stockout Date / the forecast chart. Does not affect purchase suggestions or actual stock figures.">
           <input type="checkbox"
             checked={local.inclPO===true}
@@ -1270,22 +1266,56 @@ function InventoryHealthBar({skus, t}) {
   );
 }
 
+const DASH_MONO = "'IBM Plex Mono',ui-monospace,Consolas,monospace";
+
+// One quiet list row: label (+sub) · thin bar · value
+function DashRow({label, sub, value, frac, color, onClick, t}: any) {
+  return (
+    <div className={onClick ? "dash-row" : undefined} onClick={onClick}
+      style={{display:"grid",gridTemplateColumns:"minmax(0,1.5fr) minmax(0,1fr) auto",alignItems:"center",gap:14,padding:"9px 8px",borderRadius:8,cursor:onClick?"pointer":undefined}}>
+      <div style={{minWidth:0}}>
+        <div style={{fontSize:14,fontWeight:600,color:t.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{label}</div>
+        {sub && <div style={{fontSize:12,color:t.text3,marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sub}</div>}
+      </div>
+      <div style={{height:6,background:t.border,borderRadius:3,overflow:"hidden"}}>
+        <div style={{width:`${Math.max(3,Math.min(100,(frac||0)*100))}%`,height:"100%",background:color,borderRadius:3}}/>
+      </div>
+      <div style={{fontFamily:DASH_MONO,fontSize:13,fontWeight:600,color:t.text,textAlign:"right",minWidth:56}}>{value}</div>
+    </div>
+  );
+}
+
 function Dashboard({data,settings,setSettings,onSku,t,purchRows}){
-  const skus=Object.values(data);
+  const skus=Object.values(data) as any[];
   const crit=skus.filter(d=>d.planning.priority==="critical").length;
   const high=skus.filter(d=>d.planning.priority==="high").length;
-  const over=skus.filter(d=>d.planning.action==="OVERSTOCK").length;
-  const totalStock=skus.reduce((s,d)=>s+d.currentStock,0);
+  const stockOf=(d:any)=>d.effectiveStock??d.currentStock;
+  const totalStock=skus.reduce((s,d)=>s+stockOf(d),0);
   const totalDemand=skus.reduce((s,d)=>s+d.velocity.demand,0);
-  const withFC=skus.filter(d=>d.hasFCData).length;
-  const openPoCount=useMemo(()=>{
-    if(!purchRows||!purchRows.length) return 0;
+  const a7=skus.reduce((s,d)=>s+(d.velocity.avg7||0),0);
+  const a30=skus.reduce((s,d)=>s+(d.velocity.avg30||0),0);
+  const demandDelta=a30>0?(a7/a30-1)*100:0;
+  const netCover=totalDemand>0?totalStock/totalDemand:Infinity;
+
+  // Open POs: units + count, grouped by status
+  const poStats=useMemo(()=>{
+    const out={units:0,count:0,byStatus:[] as {status:string,units:number,count:number}[]};
+    if(!purchRows||!purchRows.length) return out;
     const get=makeGet(purchRows);
-    return purchRows.filter(r=>s(r,get,"Status","status").toLowerCase().trim()!=="delivered").length;
+    const map:Record<string,{status:string,units:number,count:number}>={};
+    purchRows.forEach(r=>{
+      const st=s(r,get,"Status","status").trim();
+      if(st.toLowerCase()==="delivered") return;
+      const qty=Math.max(0,n(r,get,"Tr Qty","tr qty","Qty","qty","Quantity","quantity")||0);
+      const k=st||"Unknown";
+      (map[k]=map[k]||{status:k,units:0,count:0});
+      map[k].units+=qty; map[k].count+=1; out.units+=qty; out.count+=1;
+    });
+    out.byStatus=Object.values(map).sort((a,b)=>b.units-a.units);
+    return out;
   },[purchRows]);
 
   const [alertSort,setAlertSort]=useState({col:"score",dir:"desc"});
-
   const alerts=useMemo(()=>{
     const base=skus.filter(d=>d.planning.priority==="critical"||d.planning.priority==="high");
     const {col,dir}=alertSort;
@@ -1295,7 +1325,7 @@ function Dashboard({data,settings,setSettings,onSku,t,purchRows}){
       if(col==="doi") return m*((isFinite(a.planning.doi)?a.planning.doi:9999)-(isFinite(b.planning.doi)?b.planning.doi:9999));
       if(col==="stock") return m*(a.currentStock-b.currentStock);
       if(col==="demand") return m*(a.velocity.demand-b.velocity.demand);
-      return m*(b.planning.displayScore-a.planning.displayScore); // score default
+      return m*(b.planning.displayScore-a.planning.displayScore);
     }).slice(0,10);
   },[skus,alertSort]);
 
@@ -1309,104 +1339,204 @@ function Dashboard({data,settings,setSettings,onSku,t,purchRows}){
     );
   }
 
-  const topD=useMemo(()=>skus.filter(d=>d.velocity.demand>0)
-    .sort((a,b)=>b.velocity.demand-a.velocity.demand).slice(0,8)
-    .map(d=>({name:d.finalName.substring(0,14)+(d.finalName.length>14?"…":""),demand:+d.velocity.demand.toFixed(2),asin:d.asin})),[skus]);
+  // Network demand, last 30 days (sum of every SKU's daily units) + 7-day moving average
+  const series=useMemo(()=>{
+    const N=30, arr=Array.from({length:N},()=>({date:"",units:0}));
+    skus.forEach(d=>(d.salesHistory||[]).forEach((h:any,i:number)=>{ if(i<N){ arr[i].date=h.date; arr[i].units+=h.units||0; } }));
+    return arr.map((p,i)=>{
+      const w=arr.slice(Math.max(0,i-6),i+1);
+      return {
+        label:p.date?new Date(p.date+"T00:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short"}):"",
+        units:p.units, avg7:+(w.reduce((s,x)=>s+x.units,0)/w.length).toFixed(1),
+      };
+    });
+  },[skus]);
+  const lastAvg=series.length?series[series.length-1].avg7:0;
+
+  // Stock cover buckets (days of inventory, demand > 0 only)
+  const buckets=useMemo(()=>{
+    const B=[
+      {l:"Under 7 days",  c:t.red,    f:(x:number)=>x<7},
+      {l:"7 to 21 days",  c:t.orange, f:(x:number)=>x>=7&&x<21},
+      {l:"21 to 60 days", c:t.green,  f:(x:number)=>x>=21&&x<60},
+      {l:"60 to 120 days",c:t.text2,  f:(x:number)=>x>=60&&x<120},
+      {l:"Over 120 days", c:t.text3,  f:(x:number)=>x>=120},
+    ];
+    const live=skus.filter(d=>d.velocity.demand>0);
+    return B.map(b=>({l:b.l,c:b.c,count:live.filter(d=>b.f(isFinite(d.planning.doi)?d.planning.doi:99999)).length}));
+  },[skus,t]);
+  const maxBucket=Math.max(1,...buckets.map(b=>b.count));
+
+  // Regional demand share vs stock share (the gap is where stock is in the wrong place)
+  const regional=useMemo(()=>{
+    const R=["North","West","Central","East","South"];
+    const dem:Record<string,number>={}, stk:Record<string,number>={};
+    skus.forEach(d=>{
+      R.forEach(r=>{ dem[r]=(dem[r]||0)+((d.regionalSales||{})[r]||0); });
+      (d.fcPlanning?.fcs||[]).forEach((fc:any)=>{ const rg=FC_REGION[fc.fc]; if(rg) stk[rg]=(stk[rg]||0)+(fc.stock||0); });
+    });
+    const dT=R.reduce((s,r)=>s+(dem[r]||0),0)||1, sT=R.reduce((s,r)=>s+(stk[r]||0),0)||1;
+    return R.map(r=>({r,dem:dem[r]||0,stk:stk[r]||0,dShare:Math.round((dem[r]||0)/dT*100),sShare:Math.round((stk[r]||0)/sT*100)}));
+  },[skus]);
 
   const atRisk=useMemo(()=>skus
     .filter(d=>d.velocity.demand>0&&isFinite(d.planning.doi)&&d.planning.doi<9999)
-    .sort((a,b)=>a.planning.doi-b.planning.doi).slice(0,10)
-    .map(d=>({
-      name:d.finalName.substring(0,18)+(d.finalName.length>18?"…":""),
-      doi:+d.planning.doi.toFixed(1),
-      asin:d.asin,
-      priority:d.planning.priority,
-    })),[skus]);
+    .sort((a,b)=>a.planning.doi-b.planning.doi).slice(0,7),[skus]);
+  const topMovers=useMemo(()=>skus.filter(d=>d.velocity.demand>0)
+    .sort((a,b)=>b.velocity.demand-a.velocity.demand).slice(0,7),[skus]);
+  const maxMover=Math.max(1,...topMovers.map(d=>d.velocity.demand));
 
-  function doiBarColor(priority) {
-    return priority==="critical"?t.red:priority==="high"?t.yellow:t.green;
-  }
+  // Plain-language insights, worst first
+  const insights=useMemo(()=>{
+    const out:{tone:string,text:any,sub?:string}[]=[];
+    const names=(l:any[])=>l.slice(0,3).map(d=>d.finalName).join(", ")+(l.length>3?` +${l.length-3} more`:"");
+    const soon=skus.filter(d=>d.velocity.demand>0&&isFinite(d.planning.doi)&&d.planning.doi<14);
+    if(soon.length) out.push({tone:"bad",text:<><b>{soon.length} SKU{soon.length>1?"s":""}</b> run out within 14 days</>,sub:names(soon)});
+    const accel=skus.filter(d=>d.velocity.demand>0&&d.velocity.avg30>0&&d.velocity.avg7/d.velocity.avg30>1.1&&isFinite(d.planning.doi)&&d.planning.doi<30);
+    if(accel.length) out.push({tone:"warn",text:<><b>{accel.length} SKU{accel.length>1?"s":""}</b> speeding up with under 30 days of cover</>,sub:names(accel)});
+    const lisList=skus.map(d=>({d,l:calcLIS(d)})).filter((x:any)=>x.l);
+    const wSum=lisList.reduce((s:number,x:any)=>s+x.d.velocity.demand,0);
+    if(wSum>0){
+      const lisW=lisList.reduce((s:number,x:any)=>s+x.d.velocity.demand*x.l.pct,0)/wSum;
+      const low=lisList.filter((x:any)=>x.l.pct<50).length;
+      out.push({tone:lisW<60?"warn":"info",text:<>Local stock reaches <b>{Math.round(lisW)}%</b> of demand</>,sub:low?`${low} SKU${low>1?"s":""} below 50%`:"Every SKU is at least half covered"});
+    }
+    const over=skus.filter(d=>d.planning.action==="OVERSTOCK");
+    if(over.length) out.push({tone:"info",text:<><b>{over.length} SKU{over.length>1?"s":""}</b> overstocked</>,sub:`${fmt(over.reduce((s:number,d:any)=>s+stockOf(d),0))} units on hand · ${names(over)}`});
+    return out;
+  },[skus]);
+  const toneColor=(k:string)=>k==="bad"?t.red:k==="warn"?t.orange:k==="ok"?t.green:t.text3;
+  const tipStyle={color:t.text,background:t.tooltipBg,border:`1px solid ${t.border}`,borderRadius:8,fontSize:12,fontFamily:"'Instrument Sans',system-ui,sans-serif",boxShadow:"0 4px 12px rgba(0,0,0,.12)"};
+  const sub12={fontSize:12.5,color:t.text3};
+
+  const kpis=[
+    {l:"Daily demand",v:fmt(totalDemand,0),s:a30>0?`${demandDelta>=0?"↗":"↘"} ${Math.abs(demandDelta).toFixed(0)}% last 7d vs 30d`:"units per day",col:t.text},
+    {l:"Units in stock",v:fmt(totalStock),s:"FBA + FC + inbound, per toggles",col:t.text},
+    {l:"Network cover",v:isFinite(netCover)?`${fmt(netCover,0)}d`:"—",s:"stock at current demand",col:!isFinite(netCover)?t.text:netCover<7?t.red:netCover<21?t.yellow:t.text},
+    {l:"Need action",v:crit+high,s:`${crit} critical · ${high} high`,col:crit>0?t.red:high>0?t.yellow:t.text},
+    {l:"Open POs",v:poStats.count,s:`${fmt(poStats.units)} units on the way`,col:t.text},
+  ];
 
   return(<div>
     <SBar settings={settings} setSettings={setSettings} t={t}/>
 
-    {/* KPI cards */}
-    <div className="kg" style={{marginBottom:12}}>
-      {[
-        {l:"Total SKUs",    v:skus.length,        s:"Mapped & active",    c:""},
-        {l:"Total Stock",   v:fmt(totalStock),     s:"FC + FBA + Inbound", c:""},
-        {l:"Daily Demand",  v:fmt(totalDemand,0),  s:"Weighted avg/day",   c:""},
-        {l:"Critical",      v:crit,                s:"Immediate action",   c:"r"},
-        {l:"High Priority", v:high,                s:"Purchase required",  c:"y"},
-        {l:"Overstock",     v:over,                s:"Excess inventory",   c:"p"},
-        {l:"FC Coverage",   v:withFC,              s:"ASINs with ledger",  c:"b"},
-        {l:"Open PO's",     v:openPoCount,         s:"Not yet delivered",  c:"b"},
-      ].map(k=>(
-        <div key={k.l} className={`kc ${k.c}`}>
+    {/* KPI strip */}
+    <div className="kg kg5" style={{marginBottom:12}}>
+      {kpis.map(k=>(
+        <div key={k.l} className="kc">
           <div className="kl">{k.l}</div>
-          <div className="kv" style={{color:k.c==="r"?t.red:k.c==="y"?t.yellow:k.c==="p"?t.purple:k.c==="b"?t.accent:t.text}}>{k.v}</div>
+          <div className="kv" style={{color:k.col}}>{k.v}</div>
           <div className="ks">{k.s}</div>
         </div>
       ))}
     </div>
 
-    {/* Chart row 1: Inventory Health + Most at Risk */}
-    <div className="d2" style={{marginBottom:10}}>
+    {/* Insights + demand trend */}
+    <div className="dg a">
       <div className="card">
-        <div className="ch">Inventory Health</div>
-        <InventoryHealthBar skus={skus} t={t}/>
+        <div className="ch">What needs attention</div>
+        {insights.length===0?(
+          <div style={{...sub12,padding:"6px 0"}}>Nothing urgent. Every SKU has healthy cover.</div>
+        ):insights.map((it,i)=>(
+          <div key={i} style={{display:"flex",gap:12,padding:"11px 0",borderTop:i?`1px solid ${t.border}`:"none"}}>
+            <span style={{width:8,height:8,borderRadius:"50%",background:toneColor(it.tone),flexShrink:0,marginTop:6}}/>
+            <div style={{minWidth:0}}>
+              <div style={{fontSize:14.5,color:t.text,lineHeight:1.4}}>{it.text}</div>
+              {it.sub&&<div style={{...sub12,marginTop:2}}>{it.sub}</div>}
+            </div>
+          </div>
+        ))}
       </div>
       <div className="card">
-        <div className="ch">Most at Risk — Lowest Days of Inventory</div>
-        {atRisk.length>0?(
-          <DeferredChart h={220} delay={250}><ResponsiveContainer width="100%" height={220}>
-            <BarChart layout="vertical" data={atRisk} margin={{top:0,right:40,left:0,bottom:0}}
-              onClick={e=>e?.activePayload&&onSku(e.activePayload[0]?.payload?.asin)}
-              style={{cursor:"pointer"}}>
-              <CartesianGrid strokeDasharray="2 4" stroke={t.border} horizontal={false}/>
-              <XAxis type="number" tick={{fill:t.text3,fontSize:11}} unit="d" axisLine={false} tickLine={false}/>
-              <YAxis type="category" dataKey="name" width={130} tick={{fill:t.text2,fontSize:11,fontFamily:"'Instrument Sans',system-ui,sans-serif"}} axisLine={false} tickLine={false}/>
-              <Tooltip
-                labelStyle={{color:t.text,fontWeight:600}} itemStyle={{color:t.text2}} contentStyle={{color:t.text,background:t.tooltipBg,border:`1px solid ${t.border}`,borderRadius:8,fontSize:12,fontFamily:"'Instrument Sans',system-ui,sans-serif",boxShadow:"0 4px 12px rgba(0,0,0,.08)"}}
-                formatter={v=>[`${v}d`,`Days of Inventory`]}
-                cursor={{fill:`${t.accent}08`}}
-              />
-              <Bar dataKey="doi" radius={[0,4,4,0]} maxBarSize={18} isAnimationActive={false}>
-                {atRisk.map((e,i)=>(
-                  <Cell key={i} fill={doiBarColor(e.priority)} fillOpacity={.8}/>
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer></DeferredChart>
-        ):(
-          <div style={{padding:"30px 0",textAlign:"center",fontSize:11,color:t.text3}}>No active SKUs with demand data</div>
-        )}
+        <div className="ch">Network demand, last 30 days</div>
+        <div style={{...sub12,marginTop:-6,marginBottom:6}}>Units sold per day across all SKUs · 7-day average now <strong style={{color:t.text}}>{fmt(lastAvg,0)}</strong>/day</div>
+        <DeferredChart h={220} delay={0}><ResponsiveContainer width="100%" height={220}>
+          <ComposedChart data={series} margin={{top:8,right:8,left:-8,bottom:0}}>
+            <defs>
+              <linearGradient id="dashArea" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={t.mode==="light"?"#5b3bd8":t.accent} stopOpacity={.16}/>
+                <stop offset="100%" stopColor={t.mode==="light"?"#5b3bd8":t.accent} stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="2 4" stroke={t.border} vertical={false}/>
+            <XAxis dataKey="label" interval={4} tick={{fill:t.text3,fontSize:11}} axisLine={false} tickLine={false}/>
+            <YAxis tick={{fill:t.text3,fontSize:11}} axisLine={false} tickLine={false} width={44}/>
+            <Tooltip contentStyle={tipStyle} labelStyle={{color:t.text,fontWeight:600}} itemStyle={{color:t.text2}} formatter={(v:any,name:any)=>[`${fmt(v,name==="avg7"?1:0)}`,name==="avg7"?"7-day average":"Units sold"]}/>
+            <Area type="monotone" dataKey="units" stroke={t.text3} strokeWidth={1.2} fill="url(#dashArea)" isAnimationActive={false} dot={false}/>
+            <Line type="monotone" dataKey="avg7" stroke={t.mode==="light"?"#5b3bd8":t.accent} strokeWidth={2.2} dot={false} isAnimationActive={false}/>
+          </ComposedChart>
+        </ResponsiveContainer></DeferredChart>
       </div>
     </div>
 
-    {/* Chart row 2: Top demand */}
-    {topD.length>0&&<div className="card" style={{marginBottom:10}}>
-      <div className="ch">Top 8 by Weighted Daily Demand</div>
-      <DeferredChart h={190} delay={500}><ResponsiveContainer width="100%" height={190}>
-        <BarChart data={topD} margin={{top:4,right:12,left:0,bottom:50}}
-          onClick={e=>e?.activePayload&&onSku(e.activePayload[0]?.payload?.asin)}
-          style={{cursor:"pointer"}}>
-          <CartesianGrid strokeDasharray="2 4" stroke={t.border} vertical={false}/>
-          <XAxis dataKey="name" tick={{fill:t.text3,fontSize:9,fontFamily:"'Instrument Sans',system-ui,sans-serif"}} angle={-35} textAnchor="end" axisLine={false} tickLine={false}/>
-          <YAxis tick={{fill:t.text3,fontSize:11}} axisLine={false} tickLine={false}/>
-          <Tooltip
-            labelStyle={{color:t.text,fontWeight:600}} itemStyle={{color:t.text2}} contentStyle={{color:t.text,background:t.tooltipBg,border:`1px solid ${t.border}`,borderRadius:8,fontSize:12,fontFamily:"'Instrument Sans',system-ui,sans-serif",boxShadow:"0 4px 12px rgba(0,0,0,.08)"}}
-            formatter={v=>[`${v} u/day`,"Demand"]}
-            cursor={{fill:`${t.accent}08`}}
-          />
-          <Bar dataKey="demand" fill={t.accent} fillOpacity={.75} radius={[3,3,0,0]} maxBarSize={36} isAnimationActive={false}/>
-        </BarChart>
-      </ResponsiveContainer></DeferredChart>
-    </div>}
+    {/* Cover, regions, POs */}
+    <div className="dg b">
+      <div className="card">
+        <div className="ch">Stock cover</div>
+        <div style={{...sub12,marginTop:-6,marginBottom:8}}>SKUs by days of inventory</div>
+        {buckets.map(b=>(
+          <DashRow key={b.l} label={b.l} value={b.count} frac={b.count/maxBucket} color={b.c} t={t}/>
+        ))}
+      </div>
+
+      <div className="card">
+        <div className="ch">Demand vs stock by region</div>
+        <div style={{display:"flex",gap:16,...sub12,marginTop:-6,marginBottom:6}}>
+          <span style={{display:"inline-flex",alignItems:"center",gap:6}}><span style={{width:8,height:8,borderRadius:2,background:t.text3}}/>Demand share</span>
+          <span style={{display:"inline-flex",alignItems:"center",gap:6}}><span style={{width:8,height:8,borderRadius:2,background:t.accent}}/>Stock share</span>
+        </div>
+        {regional.map(r=>{
+          const gapPts=r.sShare-r.dShare;
+          return(
+            <div key={r.r} style={{padding:"8px 8px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:5}}>
+                <span style={{fontSize:14,fontWeight:600,color:t.text}}>{r.r}</span>
+                <span style={{fontSize:12.5,color:gapPts<=-8?t.red:t.text3}}>{r.dShare}% demand · {r.sShare}% stock{gapPts<=-8?` · ${Math.abs(gapPts)} pts short`:""}</span>
+              </div>
+              <div style={{height:5,background:t.border,borderRadius:3,overflow:"hidden",marginBottom:4}}><div style={{width:`${Math.max(2,r.dShare)}%`,height:"100%",background:t.text3,opacity:.7}}/></div>
+              <div style={{height:5,background:t.border,borderRadius:3,overflow:"hidden"}}><div style={{width:`${Math.max(2,r.sShare)}%`,height:"100%",background:t.accent}}/></div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="card">
+        <div className="ch">Open POs by status</div>
+        <div style={{...sub12,marginTop:-6,marginBottom:8}}>{fmt(poStats.units)} units across {poStats.count} order{poStats.count===1?"":"s"}</div>
+        {poStats.byStatus.length===0?(
+          <div style={{...sub12,padding:"6px 8px"}}>No open purchase orders.</div>
+        ):poStats.byStatus.map(p=>{
+          const c=({"in production":t.text2,"production completed":t.green,"in transit":t.orange,"partially shipped":t.orange} as any)[p.status.toLowerCase()]||t.text3;
+          return <DashRow key={p.status} label={p.status} sub={`${p.count} order${p.count===1?"":"s"}`} value={fmt(p.units)} frac={p.units/Math.max(1,poStats.byStatus[0].units)} color={c} t={t}/>;
+        })}
+      </div>
+    </div>
+
+    {/* At risk + top movers */}
+    <div className="dg c">
+      <div className="card">
+        <div className="ch">Most at risk</div>
+        <div style={{...sub12,marginTop:-6,marginBottom:6}}>Lowest days of inventory · click to open</div>
+        {atRisk.map(d=>(
+          <DashRow key={d.asin} label={d.finalName} sub={`Stockout ${fmtDate(d.planning.stockoutDate)}`}
+            value={`${fmt(d.planning.doi,1)}d`} frac={Math.min(1,d.planning.doi/30)}
+            color={d.planning.priority==="critical"?t.red:d.planning.priority==="high"?t.orange:t.green} onClick={()=>onSku(d.asin)} t={t}/>
+        ))}
+      </div>
+      <div className="card">
+        <div className="ch">Top movers</div>
+        <div style={{...sub12,marginTop:-6,marginBottom:6}}>Highest weighted daily demand · click to open</div>
+        {topMovers.map(d=>(
+          <DashRow key={d.asin} label={d.finalName}
+            sub={<span style={{display:"inline-flex",alignItems:"center",gap:8}}><TrendLabel trend={calcTrend(d.velocity.avg7,d.velocity.avg30)} t={t}/><span>{isFinite(d.planning.doi)?`${fmt(d.planning.doi,0)}d cover`:"no end in sight"}</span></span>}
+            value={`${fmt(d.velocity.demand,1)}/d`} frac={d.velocity.demand/maxMover} color={t.accent} onClick={()=>onSku(d.asin)} t={t}/>
+        ))}
+      </div>
+    </div>
 
     {/* Priority Alerts table */}
     {alerts.length>0&&<div className="card">
-      <div className="ch">Priority Alerts</div>
+      <div className="ch">Priority alerts</div>
       <div className="tw ts"><table>
         <thead><tr>
           <SortTh col="sku" label="SKU" style={{textAlign:"left"}}/>
@@ -1582,7 +1712,7 @@ function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,s
           <th style={{width:28}}></th>
           <SortTh col="sku" label="SKU Name" style={{textAlign:"left"}}/>
           <th style={{textAlign:"left"}}>ASIN</th>
-          <th>Trend</th>
+          <th style={{textAlign:"left"}}>Trend</th>
           <SortTh col="demand" label="W.Demand"/>
           <SortTh col="stock" label="Stock"/>
           <SortTh col="fba" label="FBA"/>
@@ -1607,7 +1737,7 @@ function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,s
             <td onClick={e=>togglePick(d.asin,e)}><input type="checkbox" checked={picked.has(d.asin)} onChange={()=>{}} style={{cursor:"pointer"}}/></td>
             <td style={{textAlign:"left"}}><div className="tn">{d.finalName}</div><div className="ta">{d.sellerSku}</div></td>
             <td style={{textAlign:"left"}} className="ta">{d.asin}</td>
-            <td><TrendLabel trend={calcTrend(d.velocity.avg7,d.velocity.avg30)} t={t}/></td>
+            <td style={{textAlign:"left"}}><TrendLabel trend={calcTrend(d.velocity.avg7,d.velocity.avg30)} t={t}/></td>
             <td style={{fontWeight:700,color:hasPriorityDemand?t.accent:t.text}} title={hasPriorityDemand?`Priority Demand override active (weighted avg is ${fmt(d.velocity.demand,2)})`:undefined}>{fmt(displayDemand,2)}</td>
             <td>{fmt(d.currentStock)}</td><td>{fmt(d.fbaAvailable)}</td><td>{fmt(d.fcSellable)}</td>
             <td style={{color:extraInboundQty>0?t.accent:undefined,fontWeight:extraInboundQty>0?700:undefined}} title={extraInboundQty>0?`Includes +${fmt(extraInboundQty)} Add Inbound (file value is ${fmt(d.inbound)})`:undefined}>{fmt(displayInbound)}</td>
@@ -1666,8 +1796,8 @@ function FCView({data,settings,setSettings,onSku,t}){
   const[q,setQ]=useState(""),[fil,setFil]=useState("all");
   const[expanded,setExpanded]=useState(new Set());
 
-  const FC_STATUS_COLOR={stockout:t.red,critical:t.red,low:t.yellow,ok:t.green,surplus:t.purple};
-  const FC_STATUS_LABEL={stockout:"STOCKOUT",critical:"CRITICAL",low:"LOW",ok:"OK",surplus:"SURPLUS"};
+  const FC_STATUS_COLOR={stockout:t.red,critical:t.red,low:t.orange,ok:t.green,surplus:t.text2};
+  const FC_STATUS_LABEL={stockout:"Stockout",critical:"Critical",low:"Low",ok:"OK",surplus:"Surplus"};
   const STATUS_RANK={stockout:0,critical:1,low:2,ok:3,surplus:4};
 
   // Invert data structure: FC code → list of SKUs
@@ -1708,40 +1838,83 @@ function FCView({data,settings,setSettings,onSku,t}){
   const critWH=warehouses.filter(w=>w.worstStatus==="critical"||w.worstStatus==="stockout").length;
   const lowWH=warehouses.filter(w=>w.worstStatus==="low").length;
   const totalStockAll=warehouses.reduce((s,w)=>s+w.totalStock,0);
+  const totalUnsellAll=warehouses.reduce((s,w)=>s+w.totalUnsellable,0);
+  const totalTransitAll=warehouses.reduce((s,w)=>s+w.totalInTransit,0);
+  const byStock=useMemo(()=>[...warehouses].sort((a,b)=>b.totalStock-a.totalStock).slice(0,8),[warehouses]);
+  const maxStock=Math.max(1,...byStock.map(w=>w.totalStock));
+  // SKU × FC pairs that run dry first
+  const runOutFirst=useMemo(()=>{
+    const rows:any[]=[];
+    warehouses.forEach(wh=>wh.skus.forEach(s=>{
+      if(s.demand>0&&isFinite(s.doi)) rows.push({...s,fc:wh.code,fcLabel:wh.label});
+    }));
+    return rows.sort((a,b)=>(a.doi-b.doi)||(b.demand-a.demand)).slice(0,8);
+  },[warehouses]);
+  const sub12={fontSize:12.5,color:t.text3};
 
   function toggleCollapse(code){
     setExpanded(prev=>{const next=new Set(prev);next.has(code)?next.delete(code):next.add(code);return next;});
+  }
+  function openFc(code){
+    setExpanded(prev=>new Set(prev).add(code));
+    setTimeout(()=>document.getElementById(`fc-${code}`)?.scrollIntoView({behavior:"smooth",block:"start"}),60);
   }
 
   return(<div>
     <SBar settings={settings} setSettings={setSettings} t={t}/>
 
-    <div className="kg" style={{marginBottom:12}}>
+    <div className="kg kg5" style={{marginBottom:12}}>
       {[
-        {l:"Fulfilment Centres",v:warehouses.length,s:"With ledger data",c:"b"},
-        {l:"Critical FCs",v:critWH,s:"Near stockout",c:"r"},
-        {l:"Low Stock FCs",v:lowWH,s:"Below cover target",c:"y"},
-        {l:"Total FC Stock",v:fmt(totalStockAll),s:"Units across all FCs",c:""},
+        {l:"Fulfilment centres",v:warehouses.length,s:"with ledger data",col:t.text},
+        {l:"Need attention",v:critWH,s:`${lowWH} more running low`,col:critWH>0?t.red:t.text},
+        {l:"Sellable units",v:fmt(totalStockAll),s:"across all FCs",col:t.text},
+        {l:"Unsellable units",v:fmt(totalUnsellAll),s:"held at FCs",col:totalUnsellAll>0?t.yellow:t.text},
+        {l:"In transit",v:fmt(totalTransitAll),s:"moving between FCs",col:t.text},
       ].map(k=>(
-        <div key={k.l} className={`kc ${k.c}`}>
+        <div key={k.l} className="kc">
           <div className="kl">{k.l}</div>
-          <div className="kv" style={{color:k.c==="b"?t.accent:k.c==="r"?t.red:k.c==="y"?t.yellow:t.text}}>{k.v}</div>
+          <div className="kv" style={{color:k.col}}>{k.v}</div>
           <div className="ks">{k.s}</div>
         </div>
       ))}
     </div>
 
-    <div className="srow" style={{marginBottom:10}}>
+    {warehouses.length>0&&(
+      <div className="dg c">
+        <div className="card">
+          <div className="ch">Stock by FC</div>
+          <div style={{...sub12,marginTop:-6,marginBottom:6}}>Sellable units · click to open</div>
+          {byStock.map(w=>(
+            <DashRow key={w.code} label={w.label} sub={`${w.code} · ${w.skus.length} SKU${w.skus.length!==1?"s":""}${w.critCount>0?` · ${w.critCount} critical`:""}`}
+              value={fmt(w.totalStock)} frac={w.totalStock/maxStock}
+              color={t.text2} onClick={()=>openFc(w.code)} t={t}/>
+          ))}
+        </div>
+        <div className="card">
+          <div className="ch">Running out first</div>
+          <div style={{...sub12,marginTop:-6,marginBottom:6}}>Lowest days of inventory at a single FC · click to open the SKU</div>
+          {runOutFirst.length===0
+            ?<div style={{...sub12,padding:"6px 8px"}}>No FC has an end date in sight.</div>
+            :runOutFirst.map((r,i)=>(
+              <DashRow key={r.asin+r.fc+i} label={r.name} sub={`${r.fcLabel} · ${r.fc}`}
+                value={`${fmt(r.doi,1)}d`} frac={Math.min(1,r.doi/30)} color={FC_STATUS_COLOR[r.status]||t.green}
+                onClick={()=>onSku(r.asin)} t={t}/>
+            ))}
+        </div>
+      </div>
+    )}
+
+    <div className="srow" style={{marginBottom:12}}>
       <div className="sbox">
         <span style={{color:t.text3}}>⌕</span>
         <input placeholder="FC code or city…" value={q} onChange={e=>setQ(e.target.value)}/>
       </div>
       <Select className="sel" value={fil} onChange={e=>setFil(e.target.value)}>
-        <option value="all">All Warehouses ({warehouses.length})</option>
-        <option value="critical">Critical / Stockout ({critWH})</option>
-        <option value="low">Low Stock ({lowWH})</option>
+        <option value="all">All warehouses ({warehouses.length})</option>
+        <option value="critical">Critical or stockout ({critWH})</option>
+        <option value="low">Low stock ({lowWH})</option>
       </Select>
-      <span style={{marginLeft:"auto",fontSize:9,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
+      <span style={{marginLeft:"auto",fontSize:12.5,color:t.text3}}>
         {filtered.length} of {warehouses.length} warehouses
       </span>
     </div>
@@ -1749,102 +1922,69 @@ function FCView({data,settings,setSettings,onSku,t}){
     {warehouses.length===0&&(
       <div className="empty">
         <div className="empty-ic">🏭</div>
-        <h3>No Ledger Data</h3>
+        <h3>No ledger data</h3>
         <p>Upload a Ledger CSV or add a Ledger tab to your Google Sheet<br/>to see per-warehouse stock levels.</p>
       </div>
     )}
 
-    <div style={{display:"flex",flexDirection:"column",gap:6}}>
+    <div style={{display:"flex",flexDirection:"column",gap:8}}>
       {filtered.map(wh=>{
         const wc=FC_STATUS_COLOR[wh.worstStatus]||t.green;
         const isOpen=expanded.has(wh.code);
         return(
-          <div key={wh.code} className="fc-card" style={{borderLeft:`2px solid ${wc}`}}>
-
-            {/* ── Warehouse header ── */}
-            <div className="fc-card-hdr" style={{cursor:"pointer"}} onClick={()=>toggleCollapse(wh.code)}>
-              {/* Status dot */}
-              <div style={{
-                width:7,height:7,borderRadius:"50%",background:wc,flexShrink:0,
-              }}/>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:14,fontWeight:600,color:t.text,letterSpacing:"-.1px"}}>{wh.label}</div>
-                <div style={{fontSize:12,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif",marginTop:3}}>
-                  {wh.code}
-                  &nbsp;·&nbsp;{wh.skus.length} SKU{wh.skus.length!==1?"s":""}
-                  &nbsp;·&nbsp;<span style={{color:t.text2}}>{fmt(wh.totalStock)} sellable</span>
-                  {wh.totalUnsellable>0&&<>&nbsp;·&nbsp;<span style={{color:t.yellow}}>{fmt(wh.totalUnsellable)} unsellable</span></>}
-                  {wh.totalInTransit>0&&<>&nbsp;·&nbsp;<span style={{color:t.accent}}>{fmt(wh.totalInTransit)} in-transit</span></>}
-                </div>
+          <div key={wh.code} id={`fc-${wh.code}`} className="fc-card" style={{overflow:"hidden"}}>
+            <div className="dash-row" onClick={()=>toggleCollapse(wh.code)} role="button" tabIndex={0}
+              onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();toggleCollapse(wh.code);}}}
+              style={{display:"grid",gridTemplateColumns:"minmax(0,1.3fr) minmax(0,1.7fr) auto",alignItems:"center",gap:16,padding:"14px 18px",cursor:"pointer",borderRadius:0}}>
+              <div style={{minWidth:0}}>
+                <div style={{fontSize:15,fontWeight:600,color:t.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{wh.label}</div>
+                <div style={{fontSize:12.5,color:t.text3,marginTop:2}}>{wh.code} · {wh.skus.length} SKU{wh.skus.length!==1?"s":""}</div>
               </div>
-              <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
-                {wh.critCount>0&&(
-                  <span style={{fontSize:12,fontWeight:600,color:t.red,display:"flex",alignItems:"center",gap:5}}>
-                    <span className="dot r"></span>{wh.critCount} critical
-                  </span>
-                )}
-                {wh.lowCount>0&&wh.critCount===0&&(
-                  <span style={{fontSize:12,fontWeight:600,color:t.yellow,display:"flex",alignItems:"center",gap:5}}>
-                    <span className="dot y"></span>{wh.lowCount} low
-                  </span>
-                )}
-                <span style={{fontSize:12,fontWeight:500,color:wc,display:"flex",alignItems:"center",gap:5}}>
-                  <span className="dot" style={{background:wc}}></span>{FC_STATUS_LABEL[wh.worstStatus]}
-                </span>
-                <span style={{
-                  fontSize:11,color:t.text3,lineHeight:1,
-                  display:"inline-block",
-                  transform:isOpen?"rotate(0deg)":"rotate(-90deg)",
-                  transition:"transform .18s",
-                }}>▾</span>
+              <div style={{display:"flex",gap:"4px 20px",flexWrap:"wrap",fontSize:13,color:t.text3}}>
+                <span><strong style={{color:t.text,fontWeight:700}}>{fmt(wh.totalStock)}</strong> sellable</span>
+                {wh.totalUnsellable>0&&<span><strong style={{color:t.text2,fontWeight:700}}>{fmt(wh.totalUnsellable)}</strong> unsellable</span>}
+                {wh.totalInTransit>0&&<span><strong style={{color:t.text2,fontWeight:700}}>{fmt(wh.totalInTransit)}</strong> in transit</span>}
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
+                {wh.critCount>0&&<span style={{fontSize:13,fontWeight:600,color:t.red}}>{wh.critCount} critical</span>}
+                {wh.critCount===0&&wh.lowCount>0&&<span style={{fontSize:13,fontWeight:600,color:t.orange}}>{wh.lowCount} low</span>}
+                <span className="badge" style={{["--bc" as any]:wc}}>{FC_STATUS_LABEL[wh.worstStatus]}</span>
+                <span aria-hidden="true" style={{fontSize:12,color:t.text3,lineHeight:1,display:"inline-block",transform:isOpen?"rotate(0deg)":"rotate(-90deg)",transition:"transform .18s"}}>▾</span>
               </div>
             </div>
 
-            {/* ── SKU table (collapsible) ── */}
             {isOpen&&(
-              <div className="tw" style={{maxHeight:340,overflowY:"auto"}}>
+              <div className="tw" style={{maxHeight:380,overflowY:"auto",borderTop:`1px solid ${t.border}`,borderRadius:0}}>
                 <table>
                   <thead><tr>
-                    <th style={{minWidth:180}}>SKU</th>
-                    <th style={{textAlign:"right"}}>Sellable</th>
-                    <th style={{textAlign:"right"}}>Demand / d</th>
-                    <th style={{textAlign:"right"}}>DOI</th>
-                    <th style={{textAlign:"right"}}>Unsellable</th>
-                    <th style={{textAlign:"right"}}>In-Transit</th>
-                    <th>Status</th>
+                    <th style={{minWidth:200,textAlign:"left"}}>SKU</th>
+                    <th>Sellable</th>
+                    <th>Demand / day</th>
+                    <th>DOI</th>
+                    <th>Unsellable</th>
+                    <th>In transit</th>
+                    <th style={{textAlign:"left"}}>Status</th>
                   </tr></thead>
                   <tbody>
                     {wh.skus.map(sku=>{
                       const sc=FC_STATUS_COLOR[sku.status]||t.green;
                       return(
                         <tr key={sku.asin} className="cr" onClick={e=>{e.stopPropagation();onSku(sku.asin);}}>
+                          <td style={{textAlign:"left"}}>
+                            <div className="tn">{sku.name}</div>
+                            <div className="ta">{sku.asin}</div>
+                          </td>
+                          <td style={{fontWeight:700,color:sku.stock>0?t.text:t.red}}>{fmt(sku.stock)}</td>
+                          <td style={{color:t.text2}}>{sku.demand>0?fmt(sku.demand,2):"—"}</td>
                           <td>
-                            <div style={{fontWeight:600,color:t.text,fontSize:12,
-                              maxWidth:210,overflow:"hidden",textOverflow:"ellipsis"}}>{sku.name}</div>
-                            <div style={{fontSize:9,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif",marginTop:2}}>{sku.asin}</div>
-                          </td>
-                          <td style={{textAlign:"right",fontWeight:700,
-                            color:sku.stock>0?t.text:t.red}}>{fmt(sku.stock)}</td>
-                          <td style={{textAlign:"right",color:t.text2}}>
-                            {sku.demand>0?fmt(sku.demand,2):"—"}
-                          </td>
-                          <td style={{textAlign:"right"}}>
                             {sku.demand>0
-                              ?<span style={{color:sc,fontWeight:700}}>
-                                {isFinite(sku.doi)?fmt(sku.doi,1)+"d":"∞"}
-                              </span>
+                              ?<span style={{color:sc,fontWeight:700}}>{isFinite(sku.doi)?fmt(sku.doi,1)+"d":"∞"}</span>
                               :<span style={{color:t.text3}}>—</span>}
                           </td>
-                          <td style={{textAlign:"right",color:sku.unsellable>0?t.yellow:t.text3}}>
-                            {sku.unsellable>0?fmt(sku.unsellable):"—"}
-                          </td>
-                          <td style={{textAlign:"right",color:sku.inTransit>0?t.accent:t.text3}}>
-                            {sku.inTransit>0?fmt(sku.inTransit):"—"}
-                          </td>
-                          <td>
-                            <span style={{fontSize:12,fontWeight:500,color:sc,display:"inline-flex",alignItems:"center",gap:5}}>
-                              <span className="dot" style={{background:sc}}></span>{FC_STATUS_LABEL[sku.status]}
-                            </span>
+                          <td style={{color:sku.unsellable>0?t.text2:t.text3}}>{sku.unsellable>0?fmt(sku.unsellable):"—"}</td>
+                          <td style={{color:sku.inTransit>0?t.text2:t.text3}}>{sku.inTransit>0?fmt(sku.inTransit):"—"}</td>
+                          <td style={{textAlign:"left"}}>
+                            <span className="badge" style={{["--bc" as any]:sc}}>{FC_STATUS_LABEL[sku.status]}</span>
                           </td>
                         </tr>
                       );
@@ -1871,7 +2011,7 @@ function LISView({data, settings, setSettings, onSku, t}) {
   const [sortCol, setSortCol] = useState("status");
   const [sortDir, setSortDir] = useState(1); // 1=asc, -1=desc
 
-  const FC_STATUS_COLOR = {stockout:t.red,critical:t.red,low:t.yellow,ok:t.green,surplus:t.purple};
+  const FC_STATUS_COLOR = {stockout:t.red,critical:t.red,low:t.orange,ok:t.green,surplus:t.text2};
   const STATUS_RANK     = {stockout:0,critical:1,low:2,ok:3,surplus:4};
   const TREND_RANK      = {"▲▲ Strong Up":0,"▲ Rising":1,"↗ Slight Up":2,"→ Stable":3,"↘ Slight Down":4,"▼ Falling":5,"▼▼ Strong Down":6,"—":7};
 
@@ -1971,7 +2111,7 @@ function LISView({data, settings, setSettings, onSku, t}) {
     );
   }
 
-  const TD = {padding:"0 12px",height:54,borderBottom:`1px solid ${t.border}`,verticalAlign:"middle"};
+  const TD = {padding:"0 12px",height:58,borderBottom:`1px solid ${t.border}`,verticalAlign:"middle",textAlign:"right"};
 
   return (
     <div>
@@ -2001,8 +2141,8 @@ function LISView({data, settings, setSettings, onSku, t}) {
           <option value="actionable">Critical + Low ({critCount+lowCount})</option>
           <option value="all">All ({rows.length})</option>
         </Select>
-        <span style={{marginLeft:"auto",fontSize:9,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
-          {filtered.length} rows · click header to sort
+        <span style={{marginLeft:"auto",fontSize:12.5,color:t.text3}}>
+          {filtered.length} rows · click a header to sort
         </span>
       </div>
 
@@ -2035,15 +2175,14 @@ function LISView({data, settings, setSettings, onSku, t}) {
                 const tc = trendColor(r.trend, t);
                 return (
                   <tr key={`${r.asin}-${r.fc}-${i}`} className="cr"
-                    style={{background:i%2===0?"transparent":t.surface+"18"}}
-                    onClick={()=>onSku(r.asin)}>
+                                        onClick={()=>onSku(r.asin)}>
                     <td style={TD}>
-                      <div style={{fontWeight:600,color:t.text,fontSize:12,maxWidth:220,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.name}</div>
-                      <div style={{fontSize:9,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif",marginTop:2}}>{r.asin}</div>
+                      <div className="tn">{r.name}</div>
+                      <div className="ta">{r.asin}</div>
                     </td>
-                    <td style={TD}>
-                      <div style={{fontWeight:700,color:t.accent,fontSize:11,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{r.fc}</div>
-                      <div style={{fontSize:9,color:t.text3,marginTop:2}}>{r.fcLabel}</div>
+                    <td style={{...TD,textAlign:"left"}}>
+                      <div style={{fontWeight:600,color:t.text,fontSize:14}}>{r.fc}</div>
+                      <div style={{fontSize:12.5,color:t.text3,marginTop:1}}>{r.fcLabel}</div>
                     </td>
                     <td style={{...TD,fontFamily:"'Instrument Sans',system-ui,sans-serif",color:t.text2}}>
                       {r.demand>0?fmt(r.demand,2):<span style={{color:t.text3}}>—</span>}
@@ -2056,18 +2195,14 @@ function LISView({data, settings, setSettings, onSku, t}) {
                         {isFinite(r.doi)?fmt(r.doi,1)+"d":"∞"}
                       </span>
                     </td>
-                    <td style={TD}>
+                    <td style={{...TD,textAlign:"left"}}>
                       <TrendLabel trend={r.trend} t={t}/>
                     </td>
-                    <td style={TD}>
-                      <span style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:12,fontWeight:500,color:sc,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
-                        <span className="dot" style={{background:sc}}></span>{r.status}
-                      </span>
+                    <td style={{...TD,textAlign:"left"}}>
+                      <span className="badge" style={{["--bc" as any]:sc}}>{sentence(r.status)}</span>
                     </td>
                     <td style={TD}>
-                      <span style={{color:t.accent,fontFamily:"'Instrument Sans',system-ui,sans-serif",fontWeight:700,fontSize:12}}>
-                        Send {fmt(r.sendQty)} units to {r.fc}
-                      </span>
+                      <span style={{color:t.text,fontWeight:700,fontSize:14}}>Send {fmt(r.sendQty)} units <span style={{color:t.text3,fontWeight:500}}>to {r.fc}</span></span>
                     </td>
                   </tr>
                 );
@@ -2077,11 +2212,9 @@ function LISView({data, settings, setSettings, onSku, t}) {
         </div>
       )}
 
-      <div style={{marginTop:10,padding:"7px 12px",background:t.surface2,border:`1px solid ${t.border}`,
-        borderRadius:6,fontSize:10,fontFamily:"'Instrument Sans',system-ui,sans-serif",color:t.text3,
-        display:"flex",gap:20,flexWrap:"wrap"}}>
-        <span>Cover target = FBA Cover Days slider · Same formula as SKU Detail send-stock</span>
-        <span style={{marginLeft:"auto"}}>Click any row → SKU Detail</span>
+      <div style={{marginTop:12,fontSize:12.5,color:t.text3,display:"flex",gap:20,flexWrap:"wrap"}}>
+        <span>Cover target follows the FBA Cover Days slider, same formula as the SKU page.</span>
+        <span style={{marginLeft:"auto"}}>Click a row to open the SKU.</span>
       </div>
     </div>
   );
@@ -2264,6 +2397,7 @@ function ProcurementForecast({data, ltData, anchorDate, openPoMap, settings, t})
     background:t.surface, borderBottom:`2px solid ${t.border}`,
     whiteSpace:"nowrap", position:"sticky", top:0, zIndex:1,
   };
+  const GL = {borderLeft:`1px solid ${t.border2}`};
   const TD = {
     padding:"0 12px", height:50, color:t.text2,
     fontSize:13, whiteSpace:"nowrap",
@@ -2275,7 +2409,7 @@ function ProcurementForecast({data, ltData, anchorDate, openPoMap, settings, t})
       {/* Page header */}
       <div style={{marginBottom:14}}>
         <div style={{fontSize:20,fontWeight:700,color:t.text,marginBottom:4}}>Procurement Forecast</div>
-        <div style={{fontSize:10,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
+        <div style={{fontSize:12.5,color:t.text3}}>
           WF ADS = (30d×0.2)+(14d×0.3)+(7d×0.5) · Sea = priority mode · Air = gap-fill only · Open POs auto-deducted from SEA rec · Safety stock included in SEA target
         </div>
       </div>
@@ -2313,9 +2447,9 @@ function ProcurementForecast({data, ltData, anchorDate, openPoMap, settings, t})
         </div>
         <Select className="sel" value={fil} onChange={e=>setFil(e.target.value)}>
           <option value="all">All SKUs</option>
-          <option value="critical">🔴 Critical Only</option>
-          <option value="urgent">🟠 Urgent (Critical + Gap)</option>
-          <option value="soon">🟡 Order Soon</option>
+          <option value="critical">Critical only</option>
+          <option value="urgent">Urgent (critical + gap)</option>
+          <option value="soon">Order soon</option>
           <option value="has_lt">Has Leadtime Data</option>
         </Select>
         <span style={{marginLeft:"auto",fontSize:9,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{filtered.length} / {skus.length} SKUs</span>
@@ -2333,28 +2467,28 @@ function ProcurementForecast({data, ltData, anchorDate, openPoMap, settings, t})
                 <th style={TH}>Trend</th>
 
                 {/* Inventory group */}
-                <th style={{...TH,background:t.accentBg,borderTop:`2px solid ${t.accent}22`}}>FBA Avail</th>
-                <th style={{...TH,background:t.accentBg,borderTop:`2px solid ${t.accent}22`}}>Local WH</th>
-                <th style={{...TH,background:t.accentBg,borderTop:`2px solid ${t.accent}22`,color:t.accent}}>
+                <th style={{...TH,...GL}}>FBA Avail</th>
+                <th style={{...TH}}>Local WH</th>
+                <th style={{...TH,color:t.accent}}>
                   Upcoming ✎
                 </th>
-                <th style={{...TH,background:t.accentBg,borderTop:`2px solid ${t.accent}22`,fontWeight:800}}>Total Inv</th>
+                <th style={{...TH,fontWeight:800}}>Total Inv</th>
 
                 {/* DOH / Stockout */}
                 <th style={TH}>Days in Hand</th>
                 <th style={TH}>Est. Stockout</th>
 
                 {/* AIR group */}
-                <th style={{...TH,background:t.orangeBg,borderTop:`2px solid ${t.orange}55`}}>AIR Days</th>
-                <th style={{...TH,background:t.orangeBg,borderTop:`2px solid ${t.orange}55`}}>Order AIR</th>
-                <th style={{...TH,background:t.orangeBg,borderTop:`2px solid ${t.orange}55`}}>AIR Arrival</th>
+                <th style={{...TH,...GL}}>AIR Days</th>
+                <th style={{...TH}}>Order AIR</th>
+                <th style={{...TH}}>AIR Arrival</th>
 
                 {/* SEA group */}
-                <th style={{...TH,background:t.greenBg,borderTop:`2px solid ${t.green}55`}}>SEA Days</th>
-                <th style={{...TH,background:t.greenBg,borderTop:`2px solid ${t.green}55`}}>Open POs</th>
-                <th style={{...TH,background:t.greenBg,borderTop:`2px solid ${t.green}55`}}>Order SEA</th>
-                <th style={{...TH,background:t.greenBg,borderTop:`2px solid ${t.green}55`}}>SEA Arrival</th>
-                <th style={{...TH,background:t.greenBg,borderTop:`2px solid ${t.green}55`}}>Reorder by (SEA)</th>
+                <th style={{...TH,...GL}}>SEA Days</th>
+                <th style={{...TH}}>Open POs</th>
+                <th style={{...TH}}>Order SEA</th>
+                <th style={{...TH}}>SEA Arrival</th>
+                <th style={{...TH}}>Reorder by (SEA)</th>
 
                 {/* Status */}
                 <th style={{...TH,minWidth:220}}>Status</th>
@@ -2379,15 +2513,15 @@ function ProcurementForecast({data, ltData, anchorDate, openPoMap, settings, t})
                       <span style={{fontSize:9,color:t.text3,marginLeft:3}}>u/d</span>
                     </td>
                     {/* Trend */}
-                    <td style={TD}>
+                    <td style={{...TD,textAlign:"left"}}>
                       <TrendLabel trend={d.trend} t={t}/>
                     </td>
 
                     {/* Inventory group */}
-                    <td style={{...TD,background:t.accentBg}}>{fmt(d.fba)}</td>
-                    <td style={{...TD,background:t.accentBg}}>{fmt(d.localWH)}</td>
+                    <td style={{...TD,...GL}}>{fmt(d.fba)}</td>
+                    <td style={{...TD}}>{fmt(d.localWH)}</td>
                     {/* Upcoming — editable */}
-                    <td style={{...TD,background:t.accentBg,cursor:"pointer",userSelect:"none"}}
+                    <td style={{...TD,cursor:"pointer",userSelect:"none"}}
                         onClick={() => { setEditingAsin(d.asin); setEditVal(String(d.upcomingQty)); }}>
                       {editingAsin === d.asin ? (
                         <input
@@ -2421,7 +2555,7 @@ function ProcurementForecast({data, ltData, anchorDate, openPoMap, settings, t})
                       )}
                     </td>
                     {/* Total Inv */}
-                    <td style={{...TD,background:t.accentBg,fontWeight:700,color:t.text,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
+                    <td style={{...TD,fontWeight:700,color:t.text,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
                       {fmt(d.totalInv)}
                     </td>
 
@@ -2444,28 +2578,28 @@ function ProcurementForecast({data, ltData, anchorDate, openPoMap, settings, t})
                     </td>
 
                     {/* AIR group */}
-                    <td style={{...TD,background:t.orangeBg}}>
+                    <td style={{...TD,...GL}}>
                       {d.airTotal !== null
                         ? <span style={{color:t.orange,fontFamily:"'Instrument Sans',system-ui,sans-serif",fontWeight:600}}>{d.airTotal}d</span>
                         : <span style={{color:t.text3}}>—</span>}
                     </td>
-                    <td style={{...TD,background:t.orangeBg}}>
+                    <td style={{...TD}}>
                       <OrderQtyCell qty={d.orderAir} t={t}/>
                     </td>
-                    <td style={{...TD,background:t.orangeBg}}>
+                    <td style={{...TD}}>
                       {d.airArrivalDate
                         ? <span style={{fontSize:11,color:t.orange,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{fmtDate(d.airArrivalDate)}</span>
                         : <span style={{color:t.text3}}>—</span>}
                     </td>
 
                     {/* SEA group */}
-                    <td style={{...TD,background:t.greenBg}}>
+                    <td style={{...TD,...GL}}>
                       {d.seaTotal !== null
                         ? <span style={{color:t.green,fontFamily:"'Instrument Sans',system-ui,sans-serif",fontWeight:600}}>{d.seaTotal}d</span>
                         : <span style={{color:t.text3}}>—</span>}
                     </td>
                     {/* Open POs */}
-                    <td style={{...TD,background:t.greenBg}}>
+                    <td style={{...TD}}>
                       {d.openPoQty > 0
                         ? <span style={{
                             display:"inline-block",padding:"2px 8px",borderRadius:4,
@@ -2474,17 +2608,17 @@ function ProcurementForecast({data, ltData, anchorDate, openPoMap, settings, t})
                           }}>{fmt(d.openPoQty)}</span>
                         : <span style={{color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>—</span>}
                     </td>
-                    <td style={{...TD,background:t.greenBg}}>
+                    <td style={{...TD}}>
                       <OrderQtyCell qty={d.orderSea} t={t}/>
                     </td>
                     {/* SEA Arrival */}
-                    <td style={{...TD,background:t.greenBg}}>
+                    <td style={{...TD}}>
                       {d.seaArrivalDate
                         ? <span style={{fontSize:11,color:t.green,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{fmtDate(d.seaArrivalDate)}</span>
                         : <span style={{color:t.text3}}>—</span>}
                     </td>
                     {/* Reorder by (SEA) — last safe date */}
-                    <td style={{...TD,background:t.greenBg}}>
+                    <td style={{...TD}}>
                       {d.reorderSeaDate ? (
                         <span style={{
                           fontSize:11,fontFamily:"'Instrument Sans',system-ui,sans-serif",fontWeight:reorderPast?700:400,
@@ -2497,12 +2631,7 @@ function ProcurementForecast({data, ltData, anchorDate, openPoMap, settings, t})
 
                     {/* Status badge */}
                     <td style={TD}>
-                      <span style={{
-                        display:"inline-flex",alignItems:"center",gap:6,fontSize:12,
-                        fontWeight:500,color:sc.color,whiteSpace:"nowrap",
-                      }}>
-                        <span className="dot" style={{background:sc.color}}></span>{d.statusLabel.replace(/^[⬜🔴🟠🟡🟢]\s*/,"")}
-                      </span>
+                      <span className="badge" style={{["--bc" as any]:sc.color}}>{d.statusLabel.replace(/^[⬜🔴🟠🟡🟢]\s*/,"")}</span>
                     </td>
                   </tr>
                 );
@@ -2516,8 +2645,8 @@ function ProcurementForecast({data, ltData, anchorDate, openPoMap, settings, t})
       {filtered.length > 0 && (
         <div style={{
           marginTop:8,padding:"8px 12px",background:t.surface,border:`1px solid ${t.border}`,
-          borderRadius:8,display:"flex",gap:20,flexWrap:"wrap",alignItems:"center",
-          fontSize:10,fontFamily:"'Instrument Sans',system-ui,sans-serif",
+          borderRadius:8,display:"flex",gap:"6px 22px",flexWrap:"wrap",alignItems:"center",
+          fontSize:13,
         }}>
           <span style={{fontWeight:600,color:t.text3}}>Totals ({filtered.length} SKUs)</span>
           <span style={{color:t.text2}}>FBA: <strong style={{color:t.text}}>{fmt(filtered.reduce((s,d)=>s+d.fba,0))}</strong></span>
@@ -2531,12 +2660,11 @@ function ProcurementForecast({data, ltData, anchorDate, openPoMap, settings, t})
       )}
 
       {/* Legend */}
-      <div style={{marginTop:8,display:"flex",gap:14,flexWrap:"wrap",fontSize:9,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
-        <span>🔴 DOH &lt; AIR lead time — order air now</span>
-        <span>🟠 DOH &lt; SEA lead time — need SEA + gap air</span>
-        <span>🟡 DOH &lt; SEA × 1.3 — place SEA soon</span>
-        <span>🟢 Stock OK — schedule routine SEA</span>
-        <span>· Upcoming ✎ = click to edit · Open POs auto-fetched from Purchases sheet · AIR = gap coverage only · SEA target = ADS × (SEA days + safety stock) − (Inv + Open POs)</span>
+      <div style={{marginTop:12,display:"flex",gap:"6px 18px",flexWrap:"wrap",fontSize:12.5,color:t.text3}}>
+        <span style={{display:"inline-flex",alignItems:"center",gap:7}}><span className="dot" style={{background:t.red}}/>Days in hand below AIR lead time: order air now</span>
+        <span style={{display:"inline-flex",alignItems:"center",gap:7}}><span className="dot" style={{background:t.orange}}/>Below SEA lead time: SEA plus gap air</span>
+        <span style={{display:"inline-flex",alignItems:"center",gap:7}}><span className="dot" style={{background:t.yellow}}/>Below SEA × 1.3: place SEA soon</span>
+        <span style={{display:"inline-flex",alignItems:"center",gap:7}}><span className="dot" style={{background:t.green}}/>Stock OK: routine SEA</span>
       </div>
     </div>
   );
@@ -3780,28 +3908,22 @@ function SKUManager({skuCfg,setSkuCfg,data,settings,setSettings,t}){
   return(<div>
     <SBar settings={settings} setSettings={setSettings} t={t}/>
     <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:14,gap:12,flexWrap:"wrap"}}>
-      <div>
-        <div style={{fontSize:15,fontWeight:700,color:t.text,marginBottom:4}}>SKU Manager</div>
-        <div style={{fontSize:10,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
-          Toggle SKUs active/inactive · Add notes · Set categories · Changes apply instantly
-        </div>
+      <div style={{fontSize:13.5,color:t.text3,maxWidth:640,lineHeight:1.5}}>
+        Switch SKUs on or off, add notes and set categories. Inactive SKUs are left out of every view and calculation. Changes apply instantly and are stored in this browser.
       </div>
-      <button className="btn bs" onClick={resetAll} style={{fontSize:11}}>↺ Reset Defaults</button>
+      <button className="btn bs" onClick={resetAll}>↺ Reset defaults</button>
       <ConfirmDialog open={confirmDefaults} title="Reset SKU settings?" message="Every SKU goes back to its default active state and category." confirmLabel="Reset to defaults" danger onCancel={()=>setConfirmDefaults(false)} onConfirm={()=>{setConfirmDefaults(false);setSkuCfg({...DEFAULT_SKU_CONFIG});}}/>
     </div>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:12}}>
-      {[{l:"Total SKUs",v:allAsins.length,c:""},{l:"Active",v:activeCount,c:"g",sub:"In calculations"},{l:"Inactive",v:inactiveCount,c:"r",sub:"Excluded"},{l:"In Calculations",v:data?Object.keys(data).length:"—",c:"",sub:"Currently loaded"}].map(k=>(
-        <div key={k.l} className={`kc ${k.c}`}>
+    <div className="kg" style={{marginBottom:12}}>
+      {[{l:"Total SKUs",v:allAsins.length,c:""},{l:"Active",v:activeCount,c:"g",sub:"In calculations"},{l:"Inactive",v:inactiveCount,c:"r",sub:"Excluded"},{l:"In calculations",v:data?Object.keys(data).length:"—",c:"",sub:"Currently loaded"}].map(k=>(
+        <div key={k.l} className="kc">
           <div className="kl">{k.l}</div>
           <div className="kv" style={{color:k.c==="r"?t.red:k.c==="g"?t.green:t.text}}>{k.v}</div>
           {k.sub&&<div className="ks">{k.sub}</div>}
         </div>
       ))}
     </div>
-    <div className="alert ab" style={{marginBottom:12}}>
-      <span>ℹ</span><span>Inactive SKUs are <strong>completely excluded</strong> from all views and calculations. Stored in localStorage.</span>
-    </div>
-    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+    <div className="srow" style={{marginBottom:12}}>
       <div className="sbox"><span style={{color:t.text3}}>⌕</span><input placeholder="Search name, ASIN, SKU, note…" value={search} onChange={e=>setSearch(e.target.value)}/></div>
       <Select className="sel" value={filterStatus} onChange={e=>setFilterStatus(e.target.value)}>
         <option value="all">All SKUs ({rows.length})</option>
@@ -3810,56 +3932,56 @@ function SKUManager({skuCfg,setSkuCfg,data,settings,setSettings,t}){
       </Select>
       {selected.size>0&&(
         <div style={{display:"flex",alignItems:"center",gap:6,marginLeft:4}}>
-          <span style={{fontSize:10,color:t.accent,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{selected.size} selected</span>
-          <button className="btn bp" style={{fontSize:10,padding:"4px 9px"}} onClick={()=>bulkSetActive(true)}>✓ Activate</button>
-          <button className="btn" style={{fontSize:10,padding:"4px 9px",background:t.redBg,color:t.red,border:`1px solid ${t.redBdr}`}} onClick={()=>bulkSetActive(false)}>✕ Deactivate</button>
+          <span style={{fontSize:13,fontWeight:600,color:t.text}}>{selected.size} selected</span>
+          <button className="btn bp" onClick={()=>bulkSetActive(true)}>✓ Activate</button>
+          <button className="btn bdl" onClick={()=>bulkSetActive(false)}>✕ Deactivate</button>
           <Select className="sel sel-sm" defaultValue="" onChange={e=>{if(e.target.value)bulkSetCategory(e.target.value);}}>
             <option value="">Set category…</option>
             {CATEGORY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}
           </Select>
-          <button className="btn bs" style={{fontSize:10,padding:"4px 9px"}} onClick={clearSelect}>Clear</button>
+          <button className="btn bs" onClick={clearSelect}>Clear</button>
         </div>
       )}
-      {selected.size===0&&<button className="btn bs" style={{fontSize:10,padding:"4px 9px",marginLeft:4}} onClick={selectAll}>Select All</button>}
-      <span style={{marginLeft:"auto",fontSize:9,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{filtered.length} SKUs shown</span>
+      {selected.size===0&&<button className="btn bs" onClick={selectAll}>Select all</button>}
+      <span style={{marginLeft:"auto",fontSize:12.5,color:t.text3}}>{filtered.length} SKUs shown</span>
     </div>
     <div className="card" style={{padding:0,overflow:"hidden"}}>
       <div className="tw ts">
         <table>
           <thead><tr>
             <th style={{width:32}}><input type="checkbox" checked={selected.size===filtered.length&&filtered.length>0} onChange={e=>e.target.checked?selectAll():clearSelect()} style={{cursor:"pointer"}}/></th>
-            <th>Status</th><th>SKU Name</th><th>ASIN</th><th>Seller SKU</th><th>Category</th><th>Note</th><th title="Overrides computed demand — never lowers it, only raises">Priority Demand</th>
-            {data&&<><th>DOI</th><th>Stock</th><th>Demand/Day</th><th>Action</th></>}
+            <th style={{textAlign:"left"}}>Status</th><th style={{textAlign:"left"}}>SKU name</th><th style={{textAlign:"left"}}>ASIN</th><th style={{textAlign:"left"}}>Seller SKU</th><th style={{textAlign:"left"}}>Category</th><th style={{textAlign:"left"}}>Note</th><th title="Overrides computed demand — never lowers it, only raises">Priority demand</th>
+            {data&&<><th>DOI</th><th>Stock</th><th>Demand/day</th><th style={{textAlign:"left"}}>Action</th></>}
           </tr></thead>
           <tbody>{filtered.map(r=>(
             <tr key={r.asin} style={{opacity:r.active?1:.55}}>
               <td><input type="checkbox" checked={selected.has(r.asin)} onChange={()=>toggleSelect(r.asin)} style={{cursor:"pointer"}}/></td>
-              <td>
-                <button onClick={()=>toggle(r.asin)} style={{padding:"4px 12px",borderRadius:20,cursor:"pointer",fontSize:12,fontWeight:500,fontFamily:"'Instrument Sans',system-ui,sans-serif",background:r.active?t.greenBg:t.redBg,color:r.active?t.green:t.red,border:`1px solid ${r.active?t.greenBdr:t.redBdr}`,transition:"all .15s"}}>
-                  {r.active?"● ACTIVE":"○ INACTIVE"}
+              <td style={{textAlign:"left"}}>
+                <button type="button" className="badge" title="Click to switch" onClick={()=>toggle(r.asin)} style={{["--bc" as any]:r.active?t.green:t.text3,cursor:"pointer"}}>
+                  {r.active?"Active":"Inactive"}
                 </button>
               </td>
-              <td><div className="tn" style={{maxWidth:180}}>{r.finalName}</div></td>
-              <td><span style={{fontSize:10,fontFamily:"'Instrument Sans',system-ui,sans-serif",color:t.text3}}>{r.asin}</span></td>
-              <td><span style={{fontSize:10,color:t.text2,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>{r.sellerSku}</span></td>
-              <td>
+              <td style={{textAlign:"left"}}><div className="tn" style={{maxWidth:200}}>{r.finalName}</div></td>
+              <td style={{textAlign:"left"}}><span className="ta">{r.asin}</span></td>
+              <td style={{textAlign:"left"}}><span className="ta" style={{color:t.text2}}>{r.sellerSku}</span></td>
+              <td style={{textAlign:"left"}}>
                 <Select className="sel sel-sm" value={r.category} onChange={e=>setCategory(r.asin,e.target.value)}>
                   {CATEGORY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}
                 </Select>
               </td>
-              <td style={{minWidth:180}}>
+              <td style={{minWidth:200,textAlign:"left"}}>
                 {editingNote===r.asin?(
                   <div style={{display:"flex",gap:5,alignItems:"center"}}>
                     <input autoFocus value={noteValue} onChange={e=>setNoteValue(e.target.value)}
                       onKeyDown={e=>{if(e.key==="Enter")setNote(r.asin,noteValue);if(e.key==="Escape")setEditingNote(null);}}
-                      style={{flex:1,padding:"3px 7px",background:t.surface2,border:`1px solid ${t.accent}`,borderRadius:5,color:t.text,fontSize:11,fontFamily:"'Instrument Sans',system-ui,sans-serif",outline:"none"}}
+                      style={{flex:1,height:32,padding:"0 10px",background:t.bg,border:`1px solid ${t.border2}`,borderRadius:8,color:t.text,fontSize:13,fontFamily:"inherit",outline:"none"}}
                       placeholder="Add note…"/>
                     <span style={{cursor:"pointer",color:t.green,fontSize:14}} onClick={()=>setNote(r.asin,noteValue)}>✓</span>
                     <span style={{cursor:"pointer",color:t.text3,fontSize:14}} onClick={()=>setEditingNote(null)}>✕</span>
                   </div>
                 ):(
-                  <div onClick={()=>{setEditingNote(r.asin);setNoteValue(r.note);}} style={{cursor:"pointer",fontSize:10,color:r.note?t.text2:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif",padding:"3px 0",borderBottom:`1px dashed ${t.border2}`,minWidth:120}} title="Click to edit">
-                    {r.note||<span style={{opacity:.4}}>click to add note…</span>}
+                  <div onClick={()=>{setEditingNote(r.asin);setNoteValue(r.note);}} className="dash-row" style={{cursor:"pointer",fontSize:13,fontFamily:"'Instrument Sans',system-ui,sans-serif",color:r.note?t.text2:t.text3,padding:"6px 8px",margin:"0 -8px",borderRadius:8,minWidth:120}} title="Click to edit">
+                    {r.note||<span style={{opacity:.7}}>Add a note</span>}
                   </div>
                 )}
               </td>
@@ -3867,13 +3989,13 @@ function SKUManager({skuCfg,setSkuCfg,data,settings,setSettings,t}){
                 <input type="number" min={0} step="0.1" placeholder="auto" defaultValue={r.priorityDemand??""}
                   onBlur={e=>setPriorityDemand(r.asin,e.target.value)}
                   onKeyDown={e=>{if(e.key==="Enter")e.target.blur();}}
-                  style={{width:64,padding:"3px 6px",background:t.surface2,border:`1px solid ${t.border}`,borderRadius:5,color:t.accent,fontSize:10,textAlign:"right",fontFamily:"'Instrument Sans',system-ui,sans-serif",fontWeight:700,outline:"none"}}/>
+                  style={{width:72,height:32,padding:"0 10px",background:t.bg,border:`1px solid ${t.border2}`,borderRadius:8,color:t.text,fontSize:13,textAlign:"right",fontFamily:"inherit",fontWeight:700,outline:"none"}}/>
               </td>
               {data&&<>
-                <td>{r.hasLiveData?<span style={{color:doiColor(r.doi),fontWeight:700}}>{isFinite(r.doi)&&r.doi<999?fmt(r.doi,1)+"d":"∞"}</span>:<span style={{color:t.text3,fontSize:9}}>inactive</span>}</td>
+                <td>{r.hasLiveData?<span style={{color:doiColor(r.doi),fontWeight:700}}>{isFinite(r.doi)&&r.doi<999?fmt(r.doi,1)+"d":"∞"}</span>:<span style={{color:t.text3,fontSize:12}}>inactive</span>}</td>
                 <td>{r.hasLiveData?fmt(r.stock):"—"}</td>
                 <td>{r.hasLiveData?fmt(r.demand,2):"—"}</td>
-                <td>{r.hasLiveData?<PBadge action={r.action} priority={r.priority} purchasePct={r.purchasePct||0} replenishPct={r.replenishPct||0} t={t}/>:<span className="badge bgr"><span className="dot gr"></span>excluded</span>}</td>
+                <td style={{textAlign:"left"}}>{r.hasLiveData?<PBadge action={r.action} priority={r.priority} purchasePct={r.purchasePct||0} replenishPct={r.replenishPct||0} t={t}/>:<span className="badge bgr">Excluded</span>}</td>
               </>}
             </tr>
           ))}</tbody>
@@ -3881,11 +4003,11 @@ function SKUManager({skuCfg,setSkuCfg,data,settings,setSettings,t}){
       </div>
     </div>
     <div style={{marginTop:12,display:"flex",gap:8,alignItems:"center"}}>
-      <button className="btn bs" style={{fontSize:11}} onClick={()=>{
+      <button className="btn bs" onClick={()=>{
         const blob=new Blob([JSON.stringify(skuCfg,null,2)],{type:"application/json"});
         const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="sku_config.json";a.click();URL.revokeObjectURL(url);
-      }}>↓ Export Config JSON</button>
-      <span style={{fontSize:9,color:t.text3,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>Save config to file. To hard-code, paste into DEFAULT_SKU_CONFIG.</span>
+      }}>↓ Export config</button>
+      <span style={{fontSize:12.5,color:t.text3}}>Saves the config to a file. To hard-code it, paste it into DEFAULT_SKU_CONFIG.</span>
     </div>
   </div>);
 }

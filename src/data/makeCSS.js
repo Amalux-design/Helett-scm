@@ -132,7 +132,10 @@ button,input,select,textarea{font-family:${SANS}}
 .slg label span{color:${t.text};font-family:${MONO};font-weight:500;font-size:14px}
 .sbar-info{margin-top:14px;padding-top:12px;border-top:1px solid ${t.border};font-size:13px;color:${t.text3};line-height:1.6}
 .sbar-info strong{color:${t.text2}}
-.sbar-info label{gap:8px;min-height:32px}
+.sbar-info{gap:8px}
+.sbar-info label{gap:10px;min-height:36px;padding:0 14px 0 6px;border:0;background:${t.surface2};border-radius:999px;color:${t.text3};font-size:13px;font-weight:500;transition:background .12s,color .12s}
+.sbar-info label:hover{background:color-mix(in srgb,${t.text} 8%,${t.surface2})}
+.sbar-info label:has(input:checked){color:${t.text}}
 .sbar-toggle{display:none}
 input[type=range]{width:100%;max-width:100%;appearance:none;height:4px;background:${t.border2};border-radius:2px;outline-offset:6px;cursor:pointer;display:block}
 input[type=range]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;border-radius:50%;background:${t.accent};cursor:pointer;border:2px solid ${t.surface};box-shadow:0 0 0 1px ${t.accent}}
@@ -302,7 +305,28 @@ td:not(:first-child){font-weight:500}
 .kl{color:${t.text2}}
 .btn,.tb-btn,.bk,.ni{font-weight:600}
 .sel,.sbox input,input[type=number],input[type=text],input[type=search]{font-weight:500}
-.card,.kc,.tw,.sb{box-shadow:0 1px 0 rgba(13,17,23,.04)}
+/* depth instead of outlines: layered soft shadows lift white surfaces off the canvas */
+.card,.kc,.fc-card{box-shadow:0 1px 2px rgba(16,24,40,.04),0 4px 14px -6px rgba(16,24,40,.08)}
+.sbar{box-shadow:0 1px 2px rgba(16,24,40,.05),0 10px 24px -10px rgba(16,24,40,.16)}
+.tb-group,.btn,.tb-btn,.bk,.tb-menu{box-shadow:0 1px 2px rgba(16,24,40,.06)}
+.tb-group .tb-btn{box-shadow:none}
+.btn:hover,.tb-btn:hover,.bk:hover,.tb-menu:hover{box-shadow:0 1px 2px rgba(16,24,40,.08),0 3px 8px -3px rgba(16,24,40,.12)}
+.tb-group .tb-btn:hover{box-shadow:none}
+.bp,.bx,.tb-btn.pri{background:#0f172a;border-color:#0f172a;color:#fff;box-shadow:0 1px 2px rgba(15,23,42,.22)}
+.bp:hover,.bx:hover{background:#1e293b;border-color:#1e293b;opacity:1}
+.sbox,.sel,input[type=number],input[type=text],input[type=search]{background:#ffffff;border-color:${t.border2};box-shadow:0 1px 2px rgba(16,24,40,.05),inset 0 1px 1px rgba(16,24,40,.02)}
+.sbox:focus-within,.sel:focus-visible,input[type=number]:focus,input[type=text]:focus,input[type=search]:focus{border-color:${t.focus};box-shadow:0 0 0 3px rgba(37,99,235,.14)}
+.tw table thead th,th{background:#f7f8fb;border-bottom:1px solid ${t.border}}
+tr:hover td{background:rgba(15,23,42,.03)}
+.sbar-info label{background:#f1f4f9;box-shadow:inset 0 0 0 1px rgba(16,24,40,.04)}
+.sbar-info label:hover{background:#e9edf4}
+.badge{background:#ffffff!important;border-color:${t.border2}!important;box-shadow:0 1px 1px rgba(16,24,40,.04)}
+.badge.solid{background:color-mix(in srgb,var(--bc) 10%,#ffffff)!important}
+input[type=checkbox]{background:#e6eaf1;border-color:#cbd3df;box-shadow:inset 0 1px 2px rgba(16,24,40,.08)}
+input[type=checkbox]:checked{background:#0f172a;border-color:#0f172a;box-shadow:none}
+.sel-menu{border-color:${t.border};box-shadow:0 14px 34px -10px rgba(16,24,40,.22),0 2px 6px rgba(16,24,40,.06)}
+.cfm{border-color:${t.border};box-shadow:0 28px 64px -16px rgba(16,24,40,.34),0 2px 8px rgba(16,24,40,.08)}
+.kc.r{border-color:${t.redBdr}}
 `:""}
 
 /* pill action buttons: compact height, one shape everywhere */
@@ -334,4 +358,13 @@ input[type=checkbox]:not(:disabled):hover{border-color:${t.text3}}
 .pp-trim:hover{filter:drop-shadow(0 0 3px rgba(255,255,255,.85))}
 .pp-bar{transition:filter .12s}
 .pp-bar:hover{filter:brightness(1.14)}
+
+/* dashboard grids + quiet list rows */
+.dg{display:grid;gap:12px;margin-bottom:12px;min-width:0}
+.dg.a{grid-template-columns:minmax(0,1fr) minmax(0,2fr)}
+.dg.b{grid-template-columns:repeat(3,minmax(0,1fr))}
+.dg.c{grid-template-columns:repeat(2,minmax(0,1fr))}
+.dash-row{transition:background .12s}
+.dash-row:hover{background:${t.surface2}}
+@media(max-width:1100px){.dg.a,.dg.b{grid-template-columns:minmax(0,1fr)}.dg.c{grid-template-columns:minmax(0,1fr)}}
 `;}
