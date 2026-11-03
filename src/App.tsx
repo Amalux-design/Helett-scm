@@ -1463,7 +1463,7 @@ function calcLIS(d){
 
 function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,skuCfg,setSkuCfg}){
   const[q,setQ]=useState(""),[fil,setFil]=useState("all");
-  const[sort,setSort]=useState({col:"doi",dir:"asc"});
+  const[sort,setSort]=useState({col:"demand",dir:"desc"});
   const[picked,setPicked]=useState(()=>new Set());
   function togglePick(asin,e){e.stopPropagation();setPicked(prev=>{const nx=new Set(prev);nx.has(asin)?nx.delete(asin):nx.add(asin);return nx;});}
   // Reset just this one SKU's Purchased Units, Priority Demand and Add Inbound
