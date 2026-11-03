@@ -82,7 +82,8 @@ button,input,select,textarea{font-family:${SANS}}
 .tb-btn-accent{display:none}
 .tb-r .tb-btn{height:36px;padding:0 12px;font-size:13px;gap:6px}
 .tb-r .tb-icon{width:36px;padding:0}
-.srow .btn,.srow .sbox,.srow .sel{height:36px;font-size:13px}
+.srow .sbox,.srow .sel{height:36px;font-size:13px}
+.srow .btn{height:36px;font-size:13px;border-radius:8px}
 .srow .btn{padding:0 12px;gap:6px}
 .srow .sbox input{font-size:13px}
 .srow .sel{min-width:130px}
@@ -299,4 +300,14 @@ td:not(:first-child){font-weight:500}
 .sel,.sbox input,input[type=number],input[type=text],input[type=search]{font-weight:500}
 .card,.kc,.tw,.sb{box-shadow:0 1px 0 rgba(13,17,23,.04)}
 `:""}
+
+/* pill action buttons: compact height, one shape everywhere */
+.btn,.tb-btn{border-radius:999px}
+.tb-r .btn,.tb-r .tb-btn{height:34px;padding:0 16px;font-size:14px}
+.tb-r .tb-icon{width:34px;padding:0}
+.srow .btn{padding:0 14px;gap:6px;border-radius:8px}
+.tb-btn.pri{background:${t.surface};color:${t.text};border-color:${t.border2}}
+.tb-btn.pri:hover{background:${t.surface2};border-color:${t.text3};opacity:1}
+.tb-btn.danger,.btn.bdl{background:${t.redBg};color:${t.red};border-color:${t.redBdr}}
+.tb-btn.danger:hover,.btn.bdl:hover{background:${t.red};color:${t.onInk==="#f5f6f7"?"#fff":"#12161c"};border-color:${t.red}}
 `;}
