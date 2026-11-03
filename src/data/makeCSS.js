@@ -9,7 +9,7 @@ const MONO="'IBM Plex Mono',ui-monospace,Consolas,monospace";
 return `
 @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{height:100%;font-size:15px;overflow:hidden;background:${t.bg}}
+html{height:100%;font-size:15px;overflow:hidden;background:${t.bg};color-scheme:${t.mode}}
 body{height:100%;overflow:hidden;background:${t.bg};color:${t.text};font-family:${SANS};line-height:1.45;-webkit-font-smoothing:antialiased}
 #fba-root{display:flex;height:100vh;width:100%;overflow:hidden;position:fixed;top:0;left:0;right:0;bottom:0;text-align:left}
 .content,.topbar,.tb-title,.tb-sub,.ch,.card,.kc,h1,h2,h3,p,div{text-align:left}
@@ -137,9 +137,10 @@ input[type=checkbox]::before{content:"";position:absolute;top:2px;left:2px;width
 input[type=checkbox]:checked{background:${t.text};border-color:${t.text}}
 input[type=checkbox]:checked::before{transform:translateX(14px);background:${t.bg}}
 input[type=checkbox]:disabled{opacity:.45;cursor:not-allowed}
-td input[type=checkbox],th input[type=checkbox]{appearance:auto;-webkit-appearance:checkbox;width:16px;height:16px;border-radius:0;background:none;accent-color:${t.accent}}
+td input[type=checkbox],th input[type=checkbox]{appearance:none;-webkit-appearance:none;width:16px;height:16px;border-radius:4px;background:transparent;border:1.5px solid ${t.border2};box-shadow:none;transition:background .12s,border-color .12s}
 td input[type=checkbox]::before,th input[type=checkbox]::before{display:none}
-td input[type=checkbox]:checked,th input[type=checkbox]:checked{background:none}
+td input[type=checkbox]:hover,th input[type=checkbox]:hover{border-color:${t.text3}}
+td input[type=checkbox]:checked,th input[type=checkbox]:checked{background:${t.accent} url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-6.5' fill='none' stroke='${t.onInk.replace('#','%23')}' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/12px no-repeat;border-color:${t.accent}}
 
 /* ── TABLES ── */
 .tw{overflow-x:auto;width:100%;max-width:100%;-webkit-overflow-scrolling:touch}
@@ -286,4 +287,16 @@ tr.cr{cursor:pointer}
   .sbar-toggle:active{background:${t.surface2}}
   .sbar:not(.m-open) .sg,.sbar:not(.m-open) .sbar-info{display:none!important}
   .sbar.m-open .sg{margin-top:4px}.sg{grid-template-columns:1fr}.slg{padding:12px 0;border-right:none;border-bottom:1px solid ${t.border}}.slg:last-child{border-bottom:none}.kg{gap:8px}.kv{font-size:26px}.tb-title{font-size:20px}.d2{grid-template-columns:1fr}.acs{grid-template-columns:1fr}.adj-grid{grid-template-columns:1fr}.sbox input{width:100%}.sbox{flex:1 1 100%}}
+
+${t.mode==="light"?`
+body{-webkit-font-smoothing:auto;font-weight:450}
+th{font-weight:700;color:${t.text2}}
+td{font-weight:500}
+td:not(:first-child){font-weight:500}
+.ta,.tb-badge,.kl,.ks{font-weight:500;color:${t.text2}}
+.kl{color:${t.text2}}
+.btn,.tb-btn,.bk,.ni{font-weight:600}
+.sel,.sbox input,input[type=number],input[type=text],input[type=search]{font-weight:500}
+.card,.kc,.tw,.sb{box-shadow:0 1px 0 rgba(13,17,23,.04)}
+`:""}
 `;}

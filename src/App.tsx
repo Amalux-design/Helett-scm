@@ -1487,6 +1487,31 @@ function Dashboard({data,settings,setSettings,onSku,t,purchRows}){
 /* ═══════════════════════════════════════════════════════════════
    ALL SKUs
 ═══════════════════════════════════════════════════════════════ */
+/* LIS (Local In Stock): share of a SKU's demand (by ship-state) whose nearest-FC cluster
+   holds stock (>0) right now. Clusters come from STATE_TO_CLUSTER, so states with no FC nearby
+   (e.g. the Northeast) count as served by their fallback cluster (CCX1/CCX2). */
+function calcLIS(d){
+  const cs=d.citySales||{};
+  const qtyByCluster={};
+  let total=0;
+  Object.entries(cs).forEach(([key,qty])=>{
+    const ck=clusterForState(key.split("||")[1]);
+    if(!ck) return;
+    qtyByCluster[ck]=(qtyByCluster[ck]||0)+qty;
+    total+=qty;
+  });
+  if(total<=0||!d.fcPlanning) return null;
+  const stock={};
+  (d.fcPlanning.fcs||[]).forEach(fc=>{ stock[fc.fc]=fc.stock||0; });
+  let inStock=0; const missing=[];
+  Object.entries(qtyByCluster).forEach(([ck,qty])=>{
+    const has=(CLUSTERS[ck]?.fcs||[]).reduce((n,fc)=>n+(stock[fc]||0),0)>0;
+    if(has) inStock+=qty; else missing.push({label:CLUSTERS[ck]?.label||ck,pct:qty/total*100});
+  });
+  missing.sort((a,b)=>b.pct-a.pct);
+  return {pct:inStock/total*100,missing};
+}
+
 function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,skuCfg,setSkuCfg}){
   const[q,setQ]=useState(""),[fil,setFil]=useState("all");
   const[sort,setSort]=useState({col:"doi",dir:"asc"});
@@ -1515,6 +1540,12 @@ function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,s
     );
   }
 
+  const lisMap=useMemo(()=>{
+    const m={};
+    Object.values(data).forEach(d=>{ m[d.asin]=calcLIS(d); });
+    return m;
+  },[data]);
+
   const skus=useMemo(()=>{
     const base=Object.values(data)
       .filter(d=>fil==="critical"?d.planning.priority==="critical":fil==="high"?d.planning.priority==="high":fil==="over"?d.planning.action==="OVERSTOCK":fil==="ok"?d.planning.priority==="low":true)
@@ -1530,10 +1561,11 @@ function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,s
       if(col==="doi")    return m*((isFinite(a.planning.doi)?a.planning.doi:99999)-(isFinite(b.planning.doi)?b.planning.doi:99999));
       if(col==="buy")    return m*(a.planning.suggestedPurchase-b.planning.suggestedPurchase);
       if(col==="replen") return m*(a.planning.replenishQty-b.planning.replenishQty);
+      if(col==="lis")    return m*((lisMap[a.asin]?.pct??-1)-(lisMap[b.asin]?.pct??-1));
       // default: priority score
       return m*(b.planning.displayScore-a.planning.displayScore);
     });
-  },[data,q,sort,fil]);
+  },[data,q,sort,fil,lisMap]);
 
   // Export what's currently on screen (search + filter applied) as CSV.
   // Stock/FBA/FC/FC Transfer/Inbound columns are zeroed to "-" when their
@@ -1545,7 +1577,7 @@ function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,s
     const inclFC = settings.inclFC !== false;
     const inclInbound = settings.inclInbound !== false;
     const inclTransfer = settings.inclTransfer !== false;
-    const headers = ["SKU Name","Seller SKU","ASIN","Trend","W.Demand/Day","Stock","FBA","FC","FC Transfer","Inbound","DOI (days)","Stockout Date","Buy Qty","Replenish Qty","Action","Priority"];
+    const headers = ["SKU Name","Seller SKU","ASIN","Trend","W.Demand/Day","Stock","FBA","FC","FC Transfer","Inbound","DOI (days)","Stockout Date","Buy Qty","Replenish Qty","LIS %","Action","Priority"];
     const rows = skus.map(d=>{
       const stock = (inclFBA?d.fbaAvailable||0:0) + (inclTransfer?d.fcTransfer||0:0) + (inclFC?d.fcSellable||0:0) + (inclInbound?(d.inbound||0)+(d.processing||0)*0.8:0);
       return [
@@ -1561,6 +1593,7 @@ function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,s
         fmtDate(d.planning.stockoutDate),
         d.planning.suggestedPurchase>0 ? fmt(d.planning.suggestedPurchase) : "-",
         d.planning.replenishQty>0 ? fmt(d.planning.replenishQty) : "-",
+        lisMap[d.asin] ? Math.round(lisMap[d.asin].pct) : "-",
         d.planning.action||"OK",
         d.planning.priority||"",
       ];
@@ -1610,8 +1643,9 @@ function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,s
           <th>Stockout</th>
           <SortTh col="buy" label="Buy Qty"/>
           <SortTh col="replen" label="Replenish"/>
-          <th>Status</th>
+          <SortTh col="lis" label="LIS"/>
           <th></th>
+          <th style={{width:36,padding:"0 14px 0 4px"}} aria-label="Purchase / replenish status"></th>
         </tr></thead>
         <tbody>{skus.map(d=>{
           const hasPriorityDemand = (d.priorityDemand||0)>0;
@@ -1632,12 +1666,31 @@ function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,s
             <td style={{color:d.planning.doi<30?t.red:t.text3}}>{fmtDate(d.planning.stockoutDate)}</td>
             <td style={{color:t.accent,fontWeight:700}}>{d.planning.suggestedPurchase>0?fmt(d.planning.suggestedPurchase):"—"}</td>
             <td style={{color:t.yellow,fontWeight:700}}>{d.planning.replenishQty>0?fmt(d.planning.replenishQty):"—"}</td>
-            <td><PBadge action={d.planning.action} priority={d.planning.priority} purchasePct={d.planning.purchasePct||0} replenishPct={d.planning.replenishPct||0} t={t}/></td>
+            {(()=>{
+              const l=lisMap[d.asin];
+              if(!l) return <td style={{color:t.text3}} title="No ship-state sales or FC data">—</td>;
+              const c=l.pct>=80?t.green:l.pct>=50?t.yellow:t.red;
+              const tip=l.missing.length
+                ? "No stock in: "+l.missing.map(x=>`${x.label} (${x.pct.toFixed(0)}% of demand)`).join(", ")
+                : "Every demand cluster has stock in its nearest FC";
+              return <td style={{color:c,fontWeight:700}} title={tip}>{l.pct.toFixed(0)}%</td>;
+            })()}
             <td>
               {hasAnyManual&&(
                 <span onClick={e=>resetSku(d.asin,e)} title="Reset this SKU's Purchased Units, Priority Demand and Add Inbound"
                   style={{cursor:"pointer",color:t.text3,fontSize:13,padding:"2px 4px"}}>↺</span>
               )}
+            </td>
+            <td style={{padding:"0 14px 0 4px",width:36,textAlign:"right"}}>
+              <span style={{display:"inline-flex",gap:5,alignItems:"center",verticalAlign:"middle"}}>
+                {[["Purchase",d.planning.suggestedPurchase>0,`Purchase required: ${fmt(d.planning.suggestedPurchase)} units`],["Replenish",d.planning.replenishQty>0,`Replenishment needed: ${fmt(d.planning.replenishQty)} units`]].map(([k,bad,tip])=>(
+                  <span key={k} title={bad?tip:`${k}: no action needed`} style={{
+                    width:6,height:6,borderRadius:"50%",display:"inline-block",
+                    background:bad?t.red:t.green,opacity:bad?1:.5,
+                    boxShadow:bad?`0 0 0 2.5px ${t.redBg}`:"none",
+                  }}/>
+                ))}
+              </span>
             </td>
           </tr>
           );
@@ -4407,20 +4460,17 @@ function FBAPlannerApp({onLogout,authEmail}:{onLogout?:()=>void;authEmail?:strin
   const anchorLabel = rawData?.maxDate ? `Data: ${fmtDate(rawData.maxDate)}` : fmtDate(getToday());
 
   const firstName=(authEmail||"").split("@")[0].split(/[._-]/)[0].replace(/^./,c=>c.toUpperCase())||"Account";
-  // Theme switch: circular reveal from the button via the View Transitions API;
-  // browsers without it (or with reduced motion) just switch.
-  function toggleTheme(e:any){
+  // Theme switch: gradual cross-dissolve between the old and new theme via the
+  // View Transitions API; browsers without it (or with reduced motion) just switch.
+  function toggleTheme(){
     const doc:any=document;
     const reduce=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if(!doc.startViewTransition||reduce){ setDark(d=>!d); return; }
-    const r=e.currentTarget.getBoundingClientRect();
-    const x=r.left+r.width/2, y=r.top+r.height/2;
-    const rad=Math.hypot(Math.max(x,innerWidth-x),Math.max(y,innerHeight-y));
     const vt=doc.startViewTransition(()=>{ flushSync(()=>setDark(d=>!d)); });
     vt.ready.then(()=>{
       document.documentElement.animate(
-        {clipPath:[`circle(0px at ${x}px ${y}px)`,`circle(${rad}px at ${x}px ${y}px)`]},
-        {duration:550,easing:"cubic-bezier(.4,0,.2,1)",pseudoElement:"::view-transition-new(root)"}
+        {opacity:[0,1]},
+        {duration:800,easing:"cubic-bezier(.45,0,.25,1)",pseudoElement:"::view-transition-new(root)"}
       );
     }).catch(()=>{});
   }
