@@ -3254,7 +3254,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
         ⓘ Including {fmt(pl.poStockQty)} PO units in stock for the figures below (forecast-only — purchase/replenish qty unaffected)
       </div>
     )}
-    <div className="d4" style={{marginBottom:10,gridTemplateColumns:"repeat(3,1fr)"}}>
+    <div className="d4 d3" style={{marginBottom:10}}>
       {[
         {l:"Days of Inventory",v:isFinite(displayDoi)?`${fmt(displayDoi,1)}d`:"∞",col:displayDoi<7?t.red:displayDoi<21?t.yellow:t.green},
         {l:"Stockout Date",v:fmtDate(displayStockoutDate),col:displayDoi<7?t.red:displayDoi<21?t.yellow:t.text},
@@ -3454,7 +3454,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
       {/* Live DOI / Stockout Date / Still Need to Order — repeated here (not duplicating
           the Gross Requirement tile below) so edits to Purchased Units / Priority Demand /
           Add Inbound further down are visible without scrolling back up. */}
-      <div className="d4" style={{marginBottom:10,gridTemplateColumns:"repeat(3,1fr)"}}>
+      <div className="d4 d3" style={{marginBottom:10}}>
         {[
           {l:"Days of Inventory",v:isFinite(displayDoi)?`${fmt(displayDoi,1)}d`:"∞",col:displayDoi<7?t.red:displayDoi<21?t.yellow:t.green},
           {l:"Stockout Date",v:fmtDate(displayStockoutDate),col:displayDoi<7?t.red:displayDoi<21?t.yellow:t.text},
@@ -3477,7 +3477,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
         ))}
       </div>
       {/* Purchased Units field */}
-      <div style={{display:"flex",alignItems:"center",gap:10,marginTop:10,padding:"8px 10px",background:t.surface2,borderRadius:7,border:`1px solid ${t.border}`}}>
+      <div style={{display:"flex",alignItems:"center",flexWrap:"wrap",gap:"6px 10px",marginTop:10,padding:"8px 10px",background:t.surface2,borderRadius:7,border:`1px solid ${t.border}`}}>
         <span style={{fontSize:13,fontWeight:600,color:t.text2,whiteSpace:"nowrap"}}>Purchased Units (PO Placed)</span>
         <input
           type="number" min={0} placeholder="0"
@@ -3500,7 +3500,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
       </div>
 
       {/* Priority Demand override field */}
-      <div style={{display:"flex",alignItems:"center",gap:10,marginTop:8,padding:"8px 10px",background:t.surface2,borderRadius:7,border:`1px solid ${t.border}`}}>
+      <div style={{display:"flex",alignItems:"center",flexWrap:"wrap",gap:"6px 10px",marginTop:8,padding:"8px 10px",background:t.surface2,borderRadius:7,border:`1px solid ${t.border}`}}>
         <span style={{fontSize:13,fontWeight:600,color:t.text2,whiteSpace:"nowrap"}} title="Overrides the weighted-average demand used for purchase qty, replenishment qty, DOI and stockout date — use for SKUs whose recent sales were suppressed by a stockout, or to plan against a known future demand. Can raise or lower demand vs. the computed average.">
           Priority Demand (units/day)
         </span>
@@ -3535,7 +3535,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
       </div>
 
       {/* Add Inbound field */}
-      <div style={{display:"flex",alignItems:"center",gap:10,marginTop:8,padding:"8px 10px",background:t.surface2,borderRadius:7,border:`1px solid ${t.border}`}}>
+      <div style={{display:"flex",alignItems:"center",flexWrap:"wrap",gap:"6px 10px",marginTop:8,padding:"8px 10px",background:t.surface2,borderRadius:7,border:`1px solid ${t.border}`}}>
         <span style={{fontSize:13,fontWeight:600,color:t.text2,whiteSpace:"nowrap"}} title="Manually adds units into planning stock (DOI / stockout / forecast). Independent of the 'Include Inbound' checkbox — this always applies, even when Include Inbound is off, so you can drop the file's inbound and hand-enter the real planned qty.">
           Add Inbound
         </span>
@@ -3771,7 +3771,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
     {/* ── INDIA REGIONAL HEATMAP ── */}
     <div className="card" id="sec-india-heatmap" style={{marginBottom:10}}>
       <div className="ch">India Regional Demand & Stock Heatmap</div>
-      <div style={{display:"grid",gridTemplateColumns:"340px 1fr",gap:16,alignItems:"stretch"}}>
+      <div className="hm-grid">
         <Suspense fallback={<div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:240,color:t.text3,fontSize:11}}>Loading map…</div>}>
           <FCMap t={t}/>
         </Suspense>

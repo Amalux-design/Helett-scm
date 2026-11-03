@@ -367,4 +367,20 @@ input[type=checkbox]:not(:disabled):hover{border-color:${t.text3}}
 .dash-row{transition:background .12s}
 .dash-row:hover{background:${t.surface2}}
 @media(max-width:1100px){.dg.a,.dg.b{grid-template-columns:minmax(0,1fr)}.dg.c{grid-template-columns:minmax(0,1fr)}}
+
+/* responsive helpers: 3-up KPI rows, heatmap split, odd last card fills the row */
+.d4.d3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.hm-grid{display:grid;grid-template-columns:340px minmax(0,1fr);gap:16px;align-items:stretch;min-width:0}
+@media(max-width:900px){.hm-grid{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:1023px){
+  .d4.d3{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .kg .kc:last-child:nth-child(odd),.d4 .kc:last-child:nth-child(odd){grid-column:1/-1}
+}
+
+/* phones: list rows stack (label + value, bar below) so names aren't squeezed */
+@media(max-width:600px){
+  .dash-row{grid-template-columns:minmax(0,1fr) auto!important;gap:6px 12px!important}
+  .dash-row>div:nth-child(2){grid-column:1/-1;grid-row:2}
+  .dash-row>div:nth-child(3){grid-column:2;grid-row:1}
+}
 `;}

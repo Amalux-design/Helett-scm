@@ -205,7 +205,7 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
 
   // White "trim" edge, like a clip handle in a video editor (hit area is wider than the pill)
   const trim = (cx: number, cy: number, down: (e: any) => void, hint: string) => (
-    <g className="pp-trim" style={{ cursor: "ew-resize" }} onPointerDown={down} {...tipOn("Resize", [hint])}>
+    <g className="pp-trim" style={{ cursor: "ew-resize", touchAction: "none" }} onPointerDown={down} {...tipOn("Resize", [hint])}>
       <rect x={cx - 9} y={cy - 12} width="18" height="24" fill="transparent" />
       <rect x={cx - 3.5} y={cy - 9} width="7" height="18" rx="3.5" fill="#ffffff" stroke={P.po} strokeWidth="1.5" />
       <line x1={cx} x2={cx} y1={cy - 4} y2={cy + 4} stroke={P.po} strokeWidth="1.5" strokeLinecap="round" />
@@ -296,7 +296,7 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
         </div>
         <div ref={wrapRef} style={{ position: "relative" }}>
           <div style={{ overflowX: "auto" }}>
-            <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width="100%" style={{ minWidth: 640, display: "block", touchAction: "none" }} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} role="img" aria-label="Purchase plan: current stock and purchase orders over time">
+            <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width="100%" style={{ minWidth: 560, display: "block" }} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} role="img" aria-label="Purchase plan: current stock and purchase orders over time">
               <defs>
                 <pattern id="pp-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
                   <rect width="6" height="6" fill={P.tail} opacity=".28" />
