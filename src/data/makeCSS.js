@@ -386,10 +386,14 @@ input[type=checkbox]:not(:disabled):hover{border-color:${t.text3}}
 
 /* data tables: SKU name gets a proportional column (ellipsis only when it truly overflows), the rest share the slack */
 table.tight th,table.tight td{white-space:nowrap;padding-left:8px;padding-right:8px}
-table.tight th:nth-child(2){width:27%;min-width:176px}
-table.tight td:nth-child(2){width:27%;min-width:176px;max-width:0}
+table.tight th:nth-child(2){width:24%;min-width:150px}
+table.tight td:nth-child(2){width:24%;min-width:150px;max-width:0}
+table.tight .badge{padding:0 10px;gap:6px}
 table.tight td:nth-child(2) .tn,table.tight td:nth-child(2) .ta{display:block;max-width:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 table.tight th:nth-child(1),table.tight td:nth-child(1){width:28px;padding-left:12px;padding-right:4px}
+/* DOI (11th) and Stockout (12th) reserve room for their "+ PO" labels so toggling Include PO never shifts the table */
+table.tight th:nth-child(11),table.tight td:nth-child(11){min-width:88px}
+table.tight th:nth-child(12),table.tight td:nth-child(12){min-width:110px}
 /* toolbar buttons sit a touch shorter than the 36px inputs so the solid Export button doesn't read heavier */
 .srow .btn{height:32px}
 `;}
