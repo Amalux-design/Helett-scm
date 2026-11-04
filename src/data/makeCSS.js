@@ -383,4 +383,10 @@ input[type=checkbox]:not(:disabled):hover{border-color:${t.text3}}
   .dash-row>div:nth-child(2){grid-column:1/-1;grid-row:2}
   .dash-row>div:nth-child(3){grid-column:2;grid-row:1}
 }
+
+/* tight data tables: columns hug their content, SKU name (2nd column) absorbs the leftover width */
+table.tight th,table.tight td{width:1%;white-space:nowrap;padding-left:7px;padding-right:7px}
+table.tight th:nth-child(2),table.tight td:nth-child(2){width:auto;min-width:190px}
+table.tight td:nth-child(2) .tn,table.tight td:nth-child(2) .ta{display:block;max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+table.tight th:nth-child(1),table.tight td:nth-child(1){width:28px;padding-left:12px;padding-right:4px}
 `;}

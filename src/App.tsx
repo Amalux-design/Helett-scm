@@ -1626,7 +1626,8 @@ function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,s
 
   // Include PO on → DOI / stockout fold in the units already ordered
   const poOn=settings.inclPO===true;
-  const poQtyOf=d=>poOn?(d.planning.poStockQty||0):0;
+  const poQtyOf=d=>poOn?(d.planning.poStockQty||0):0;                       // applied to DOI / stockout / buy
+  const poAllOf=d=>(d.purchasedUnits||0)+(d.openPoQty||0);                   // shown always
   const doiOf=d=>poQtyOf(d)>0?d.planning.doiWithPO:d.planning.doi;
   const soOf=d=>poQtyOf(d)>0?d.planning.stockoutDateWithPO:d.planning.stockoutDate;
   const stockOf=d=>d.effectiveStock??d.currentStock;
@@ -1650,7 +1651,7 @@ function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,s
       if(col==="fc")     return m*(a.fcSellable-b.fcSellable);
       if(col==="demand") return m*(a.velocity.demand-b.velocity.demand);
       if(col==="doi")    return m*((isFinite(doiOf(a))?doiOf(a):99999)-(isFinite(doiOf(b))?doiOf(b):99999));
-      if(col==="po")     return m*(poQtyOf(a)-poQtyOf(b));
+      if(col==="po")     return m*(poAllOf(a)-poAllOf(b));
       if(col==="buy")    return m*(a.planning.suggestedPurchase-b.planning.suggestedPurchase);
       if(col==="replen") return m*(a.planning.replenishQty-b.planning.replenishQty);
       if(col==="lis")    return m*((lisMap[a.asin]?.pct??-1)-(lisMap[b.asin]?.pct??-1));
@@ -1669,7 +1670,7 @@ function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,s
     const inclFC = settings.inclFC !== false;
     const inclInbound = settings.inclInbound !== false;
     const inclTransfer = settings.inclTransfer !== false;
-    const headers = ["SKU Name","Seller SKU","ASIN","Trend","W.Demand/Day","Stock","FBA","FC","FC Transfer","Inbound",...(poOn?["PO units"]:[]),poOn?"DOI incl. PO (days)":"DOI (days)","Stockout Date","Buy Qty","Replenish Qty","LIS %","Action","Priority"];
+    const headers = ["SKU Name","Seller SKU","ASIN","Trend","W.Demand/Day","Stock","FBA","FC","FC Transfer","Inbound","PO units",poOn?"DOI incl. PO (days)":"DOI (days)","Stockout Date","Buy Qty","Replenish Qty","LIS %","Action","Priority"];
     const rows = skus.map(d=>{
       const stock = (inclFBA?d.fbaAvailable||0:0) + (inclTransfer?d.fcTransfer||0:0) + (inclFC?d.fcSellable||0:0) + (inclInbound?(d.inbound||0)+(d.processing||0)*0.8:0);
       return [
@@ -1681,7 +1682,7 @@ function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,s
         inclFC ? fmt(d.fcSellable) : "-",
         inclTransfer ? fmt(d.fcTransfer) : "-",
         inclInbound ? fmt(d.inbound) : "-",
-        ...(poOn?[poQtyOf(d)>0?fmt(poQtyOf(d)):"-"]:[]),
+        poAllOf(d)>0 ? fmt(poAllOf(d)) : "-",
         isFinite(doiOf(d)) ? fmt(doiOf(d),1) : "∞",
         fmtDate(soOf(d)),
         d.planning.suggestedPurchase>0 ? fmt(d.planning.suggestedPurchase) : "-",
@@ -1721,7 +1722,7 @@ function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,s
           ))}
         </div>
       )}
-      <div className="tw ts"><table style={{fontSize:11}}>
+      <div className="tw ts"><table className="tight" style={{fontSize:11}}>
         <thead><tr>
           <th style={{width:28}}></th>
           <SortTh col="sku" label="SKU Name" style={{textAlign:"left"}}/>
@@ -1732,7 +1733,7 @@ function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,s
           <SortTh col="fba" label="FBA"/>
           <SortTh col="fc" label="FC"/>
           <th>Inbound</th>
-          {poOn&&<SortTh col="po" label="PO"/>}
+          <SortTh col="po" label="PO"/>
           <SortTh col="doi" label={poOn?"DOI + PO":"DOI"}/>
           <th>{poOn?"Stockout + PO":"Stockout"}</th>
           <SortTh col="buy" label="Buy Qty"/>
@@ -1756,7 +1757,7 @@ function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,s
             <td style={{fontWeight:700,color:hasPriorityDemand?t.accent:t.text}} title={hasPriorityDemand?`Priority Demand override active (weighted avg is ${fmt(d.velocity.demand,2)})`:undefined}>{fmt(displayDemand,2)}</td>
             <td>{fmt(stockOf(d))}</td><td>{fmt(d.fbaAvailable)}</td><td>{fmt(d.fcSellable)}</td>
             <td style={{color:extraInboundQty>0?t.accent:undefined,fontWeight:extraInboundQty>0?700:undefined}} title={extraInboundQty>0?`Includes +${fmt(extraInboundQty)} Add Inbound (file value is ${fmt(d.inbound)})`:undefined}>{fmt(displayInbound)}</td>
-            {poOn&&<td style={{color:poQtyOf(d)>0?t.text:t.text3,fontWeight:poQtyOf(d)>0?700:undefined}} title={poQtyOf(d)>0?"Units already ordered (Purchased Units + open POs), folded into DOI and stockout":"No PO units for this SKU"}>{poQtyOf(d)>0?fmt(poQtyOf(d)):"—"}</td>}
+            <td style={{color:poAllOf(d)>0?(poOn?t.text:t.text2):t.text3,fontWeight:poAllOf(d)>0?700:undefined}} title={poAllOf(d)>0?(poOn?"Units already ordered (Purchased Units + open POs), counted in DOI, stockout and Buy Qty":"Units already ordered. Not counted yet. Turn on Include PO to fold them into DOI, stockout and Buy Qty"):"No PO units for this SKU"}>{poAllOf(d)>0?fmt(poAllOf(d)):"—"}</td>
             <td title={poQtyOf(d)>0?`Includes ${fmt(poQtyOf(d))} PO units`:undefined}><DOI doi={doiOf(d)} t={t}/></td>
             <td style={{color:doiOf(d)<30?t.red:t.text3,whiteSpace:"nowrap"}} title={poQtyOf(d)>0?`Includes ${fmt(poQtyOf(d))} PO units`:undefined}>{fmtDateShort(soOf(d))}</td>
             <td style={{color:t.accent,fontWeight:700}}>{d.planning.suggestedPurchase>0?fmt(d.planning.suggestedPurchase):"—"}</td>
