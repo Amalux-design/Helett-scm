@@ -34,7 +34,7 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
   const inpRef = useRef<any>(null);
   const [infoOpen, setInfoOpen] = useState(false);
   const [boost, setBoost] = useState(0); // axis width while dragging past the right edge
-  const [dragInfo, setDragInfo] = useState<{ day: number; cover: number; label: string } | null>(null);
+  const [dragInfo, setDragInfo] = useState<{ day: number; cover: number; label: string; verb: string } | null>(null);
 
   const rEff = follow ? r : 1;
   const inp: PlanInput = useMemo(() => ({ stock0, d0, r: rEff, LT, airLT, hasAir, S, poUnits }), [stock0, d0, rEff, LT, airLT, hasAir, S, poUnits]);
@@ -101,14 +101,14 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
       setBoost(dg.maxDay);
       applyDrag(dg.vx);
     }, 80);
-    setDragInfo({ day: startDay, cover: Math.max(0, startDay - startOf), label });
+    setDragInfo({ day: startDay, cover: Math.max(0, startDay - startOf), label, verb: k === -2 ? "adds" : "covers" });
     try { (e.currentTarget as Element).setPointerCapture(e.pointerId); } catch (_) {}
   }
   function applyDrag(vx: number) {
     const dg = drag.current; if (!dg) return;
     const day = Math.max(0, Math.min(dg.maxDay, (vx - padL) / plotW * dg.maxDay));
     const dayR = Math.round(day);
-    setDragInfo({ day: dayR, cover: Math.max(0, dayR - dg.startOf), label: dg.label });
+    setDragInfo({ day: dayR, cover: Math.max(0, dayR - dg.startOf), label: dg.label, verb: dg.k === -2 ? "adds" : "covers" });
     if (dg.k === -2) { setAirOv(unitsForAirEndDay(planRef.current, inpRef.current, day)); return; }
     const next = dg.units.slice();
     next[dg.k] = unitsForEndDay(planRef.current, inpRef.current, dg.units, dg.k, day);
@@ -165,11 +165,16 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
 
   // Quick-decision facts, read straight off the plan
   const nextPo = plan.bars.find(b => b.units > 0) ?? plan.bars[0];
+  // Days each layer really adds (not the overlap with whatever is still on hand when it arrives)
+  const baseEnd0 = Math.max(sr.tZero, pl?.tZero ?? 0);                              // stock (+ placed PO) alone
+  const airAdds = plan.air ? Math.max(0, plan.air.tEnd - Math.max(baseEnd0, plan.air.arrive)) : 0;
+  const afterAirEnd = plan.air ? Math.max(baseEnd0, plan.air.tEnd) : baseEnd0;       // end date once air is counted
+  const prevEnd = (k: number) => (k === 0 ? afterAirEnd : plan.bars[k - 1].tZero);   // end date before PO k
   const coveredTo = Math.max(sr.tZero, pl?.tZero ?? 0, ...plan.bars.filter(b => b.units > 0).map(b => b.tZero), plan.air?.tEnd ?? 0);
   const facts: { k: string; v: string; bad?: boolean }[] = [
     { k: "Stock lasts", v: `${stockDays}d · ${dayLabel(anchor, sr.tZero)}` },
     ...(pl ? [{ k: "Placed PO", v: `arrives ${dayLabel(anchor, pl.arrival)} · lasts to ${dayLabel(anchor, pl.tZero)}` }] : []),
-    ...(plan.air ? [{ k: "Air", v: `${fmt(plan.air.u)} u · arrives ${dayLabel(anchor, plan.air.arrive)} · lasts to ${dayLabel(anchor, plan.air.tEnd)}` }] : []),
+    ...(plan.air ? [{ k: "Air", v: `${fmt(plan.air.u)} u · arrives ${dayLabel(anchor, plan.air.arrive)} · adds ${airAdds}d, stock + air last to ${dayLabel(anchor, plan.air.tEnd)}` }] : []),
     ...(nextPo && nextPo.units > 0 ? [{ k: "Next order", v: nextPo.late > 0 ? `today (${nextPo.late}d late) · arrives ${dayLabel(anchor, nextPo.arrival)}` : `by ${dayLabel(anchor, nextPo.order)} · arrives ${dayLabel(anchor, nextPo.arrival)}`, bad: nextPo.late > 0 }]
       : nextPo ? [{ k: "Next order", v: `by ${dayLabel(anchor, nextPo.order)} (arrives ${dayLabel(anchor, nextPo.arrival)})` }] : []),
     { k: "Covered to", v: `${dayLabel(anchor, coveredTo)} (${coveredTo}d)` },
@@ -186,7 +191,7 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
     ] },
     { h: "Reading the bars", items: [
       `Solid part is cover you can sell. The hatched end is the last ${S} days, kept as safety.`,
-      "The bold number after each bar is its total days of cover, safety included.",
+      "The bold number after a bar: for Stock, days until it runs out; for a PO, days you are covered from its arrival (safety included); for Air, +N is the days it adds.",
       "Each order arrives just as the bar above it enters its safety stretch. The thin line before a bar is shipping time, with the order date above it.",
       "The Air bar is stock flown in to cover the gap until a sea order arrives.",
     ] },
@@ -199,8 +204,8 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
   ];
 
   // "62d" tag at the end of a bar: the bar's total cover in days, safety included
-  const endTag = (xe: number, cy: number, days: number, extra: number) => (
-    <text x={xe + extra} y={cy + 4} fontSize="12" fontWeight="700" fill={t.text} fontFamily="inherit" pointerEvents="none">{Math.max(0, Math.round(days))}d</text>
+  const endTag = (xe: number, cy: number, days: number, extra: number, prefix = "") => (
+    <text x={xe + extra} y={cy + 4} fontSize="12" fontWeight="700" fill={t.text} fontFamily="inherit" pointerEvents="none">{prefix}{Math.max(0, Math.round(days))}d</text>
   );
 
   // White "trim" edge, like a clip handle in a video editor (hit area is wider than the pill)
@@ -360,10 +365,17 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
               {plan.air && (() => {
                 const cy = axisH + (1 + (pl ? 1 : 0)) * rowH + rowH / 2, a = plan.air;
                 const seaGap = a.until - a.tEnd;
+                const left = baseEnd0 - a.arrive; // days of stock still on hand when the air arrives
                 const tp = tipOn("Air bridge", [
                   `${fmt(a.u)} units flown in${airOv !== null ? " (set by you)" : ""}`,
                   `Order today, they arrive ${dayLabel(anchor, a.arrive)} (day ${a.arrive})`,
-                  `From then, your stock + this air last another ${Math.max(0, a.tEnd - a.arrive)} days, until ${dayLabel(anchor, a.tEnd)}`,
+                  left > 0
+                    ? `When they arrive, your stock still has about ${left} days left (it would run out ${dayLabel(anchor, baseEnd0)})`
+                    : `Your stock runs out ${-left} days before they arrive, on ${dayLabel(anchor, baseEnd0)}`,
+                  left > 0
+                    ? `The air adds ${airAdds} days: ${left} days of stock + ${airAdds} from the air = ${a.tEnd - a.arrive} days after arrival`
+                    : `The air adds ${airAdds} days of cover`,
+                  `Stock + air last until ${dayLabel(anchor, a.tEnd)}`,
                   `A sea order placed today arrives ${dayLabel(anchor, a.until)} (day ${a.until}), ${seaGap > 0 ? `${seaGap} day${seaGap === 1 ? "" : "s"} after they run out, so you would be without stock` : seaGap === 0 ? "the day they run out, so there is no gap" : `${-seaGap} day${seaGap === -1 ? "" : "s"} before they run out, so there is no gap`}`,
                   "Click to edit the units · drag the white edge to cover more days",
                 ]);
@@ -375,8 +387,8 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
                     <text x={x(0) + 8} y={cy - 9} fontSize="10" fill={t.text3} fontFamily="inherit">order today</text>
                     <rect x={x(a.arrive)} y={cy - 10} width={Math.max(2, x(a.tEnd) - x(a.arrive))} height="20" rx="5" fill={P.air} stroke={P.po} strokeWidth="1" className="pp-bar" style={clickable} onClick={e => openEdit(e, "air", 0, a.u)} {...tp} />
                     <text x={x(a.arrive) + 6} y={cy + 4} fontSize="11" fontWeight="600" fill={P.airTx} fontFamily="inherit" pointerEvents="none">{fmt(a.u)} u</text>
-                    {endTag(x(a.tEnd), cy, a.tEnd - a.arrive, 16)}
-                    {trim(x(a.tEnd), cy, e => onDown(e, -2, a.tEnd, a.arrive, `Air · ${fmt(a.u)} u`), "Drag to extend the air bridge")}
+                    {endTag(x(a.tEnd), cy, airAdds, 16, "+")}
+                    {trim(x(a.tEnd), cy, e => onDown(e, -2, a.tEnd, Math.max(baseEnd0, a.arrive), `Air · ${fmt(a.u)} u`), "Drag to extend the air bridge")}
                   </g>
                 );
               })()}
@@ -386,12 +398,14 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
                 const ri = 1 + (pl ? 1 : 0) + (plan.air ? 1 : 0) + i, cy = axisH + ri * rowH + rowH / 2;
                 const bodyW = x(b.tSafe) - x(b.arrival), tailW = x(b.tZero) - x(b.tSafe);
                 const cover = Math.max(0, b.tZero - b.arrival);
+                const pe = prevEnd(b.k), added = Math.max(0, b.tZero - pe);
                 const tp = tipOn(`PO ${b.k + 1} · ${fmt(b.units)} units`, [
                   b.late > 0
                     ? `Order today. That is ${b.late} days later than ideal${plan.air ? ", so the air bridge covers the gap" : ""}`
                     : `Place the order on ${dayLabel(anchor, b.order)} (day ${b.order})`,
                   `It arrives ${dayLabel(anchor, b.arrival)} (day ${b.arrival}), ${Math.max(0, b.arrival - b.order)} days after ordering`,
-                  `Covers ${cover} days of demand, until ${dayLabel(anchor, b.tZero)}`,
+                  `It adds ${added} days: everything on hand runs out ${dayLabel(anchor, pe)} without it, ${dayLabel(anchor, b.tZero)} with it`,
+                  `From its arrival you are covered ${cover} days, until ${dayLabel(anchor, b.tZero)}`,
                   `The last ${S} days (from ${dayLabel(anchor, b.tSafe)}) are your safety stock`,
                   "Click to edit the units · drag the white edge to cover more days",
                 ]);
@@ -412,7 +426,7 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
               })}
 
               {dragInfo && (() => {
-                const lx = x(dragInfo.day), txt = `${dayLabel(anchor, dragInfo.day)} · covers ${dragInfo.cover}d`;
+                const lx = x(dragInfo.day), txt = `${dayLabel(anchor, dragInfo.day)} · ${dragInfo.verb} ${dragInfo.cover}d`;
                 const pw = Math.max(110, txt.length * 6.4 + 18);
                 const px = Math.max(padL, Math.min(lx - pw / 2, W - padR - pw));
                 return (
