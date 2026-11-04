@@ -6,7 +6,7 @@ import { FC_CITY, fcLabel, FC_REGION } from "./data/fcMapping.js";
 import { STATE_TO_REGION } from "./data/stateRegion.js";
 import { CLUSTERS, stateNameToCode, clusterForState, stateCodeToName } from "./data/fcStateMapping.js";
 import PurchasePlanChart from "./purchasePlan/PurchasePlanChart";
-import { trendRatio, getStartStock, getPlacedPoUnits } from "./purchasePlan/planLogic";
+import { trendRatio, getStartStock } from "./purchasePlan/planLogic";
 import { CITY_ALIAS, normalizeCity } from "./data/cityNormalizer.js";
 import { DARK, LIGHT } from "./data/themes.js";
 import { LOGO_ICON, NAV_ICONS } from "./data/icons.jsx";
@@ -2993,6 +2993,12 @@ function JumpNav({sections, stickyHeaderRef, t}){
   );
 }
 
+// Sheet dates: dd/mm/yyyy (India) is read day-first; anything else ("Nov 18, 2026", ISO) goes to Date.
+function parseSheetDate(str:string):Date|null{
+  const m=String(str).trim().match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2}|\d{4})$/);
+  const d=m?new Date(+(m[3].length===2?"20"+m[3]:m[3]),+m[2]-1,+m[1]):new Date(str);
+  return isNaN(d.getTime())?null:d;
+}
 function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, purchRows, skuCfg, setSkuCfg, extraInbound, setExtraInbound, poSelection, togglePoSelection}){
   if(!sku) return null;
   const {velocity:vel, planning:pl, forecast:baseForecast, forecastWithPO, fcPlanning, hasFCData, regionalSales, citySales, salesHistory} = sku;
@@ -3616,7 +3622,16 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
     {/* Purchase plan chart — candle-style shipment split */}
     <PurchasePlanChart key={sku.asin}
       stock0={getStartStock(sku.effectiveStock ?? sku.currentStock)}
-      poUnits={getPlacedPoUnits(currentPoUnits, totalOpenPoQty, settings.inclPO===true)} d0={demand}
+      placedPos={poGateOn ? [
+        ...(currentPoUnits>0 ? [{id:"manual",label:"Purchased units",units:currentPoUnits,etaDay:null}] : []),
+        ...skuPoRows.filter(pr=>pr.included&&pr.qty>0).map(pr=>{
+          const str = s(pr.row,makeGet([pr.row]),"Estimated Date of Delivery","estimated_date_of_delivery","Estimated Delivery Date","Expected Date of Delivery","Expected Delivery Date","Date of Delivery","date_of_delivery","Delivery Date","delivery_date","ETA");
+          const dt = str ? parseSheetDate(str) : null;
+          const a0 = sku._anchor||new Date(); // compare calendar days, not clock times
+          const raw = dt && !isNaN(dt.getTime()) ? Math.round((new Date(dt.getFullYear(),dt.getMonth(),dt.getDate()).getTime()-new Date(a0.getFullYear(),a0.getMonth(),a0.getDate()).getTime())/86400000) : null;
+          return {id:pr.poNo,label:pr.poNo,units:pr.qty,etaDay:raw==null?null:Math.max(0,raw),overdue:raw!=null&&raw<0};
+        }),
+      ] : []} d0={demand}
       r={trendRatio(vel.avg7, vel.avg30)}
       LT={effectiveLT} airLT={effectiveAirLT||0} hasAir={hasAir}
       S={settings.safetyDays}

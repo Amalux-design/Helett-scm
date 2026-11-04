@@ -1,19 +1,21 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   PP_MAXH, buildCum, splitUnits, planShipments, recommendTotal, autoShipmentCount,
   unitsForEndDay, unitsForAirEndDay, dayLabel, type PlanInput,
 } from "./planLogic";
 
 /* Purchase Plan — horizontal candle chart.
-   Row 1 is the current (enabled) stock stretched over the days it lasts; every purchase
-   order below it arrives where the layer above enters its safety stretch (hatched).
-   Click a bar to type its units, drag a PO's end handle to resize it.
+   Row 1 is the current (enabled) stock stretched over the days it lasts. Orders already placed
+   start on their sheet ETA (no ETA: where the stock above enters safety); every new purchase
+   order arrives where the layer above enters its safety stretch (hatched).
+   Click a new bar to type its units, drag its end handle to resize it, drag the bar itself to
+   move its arrival earlier or later (what-if only, never written to the sheet).
    Inputs come from SKU Detail; all maths lives in planLogic.ts. */
 
 const fmt = (n: number) => Math.round(n).toLocaleString("en-IN");
 const AXIS_CAP = 720; // widest the time axis can grow (days)
 
-export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airLT, hasAir, S, anchor, t }: any) {
+export default function PurchasePlanChart({ stock0, placedPos, d0, r, LT, airLT, hasAir, S, anchor, t }: any) {
   const dark = t.mode === "dark";
   const P = dark
     ? { stock: "#a78bfa", stockTx: "#1e1b4b", po: "#8b5cf6", poTx: "#ffffff", tail: "#c4b5fd", air: "#ddd6fe", airTx: "#2e1065", wick: "#a78bfa" }
@@ -34,10 +36,14 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
   const inpRef = useRef<any>(null);
   const [infoOpen, setInfoOpen] = useState(false);
   const [boost, setBoost] = useState(0); // axis width while dragging past the right edge
-  const [dragInfo, setDragInfo] = useState<{ day: number; cover: number; label: string; verb: string } | null>(null);
+  const [dragInfo, setDragInfo] = useState<{ day: number; text: string } | null>(null);
+  const [moves, setMoves] = useState<Record<string, number>>({}); // layer id → arrival day (what-if)
+  const ctxRef = useRef<any>({});
+  const maxDayRef = useRef(200);
 
   const rEff = follow ? r : 1;
-  const inp: PlanInput = useMemo(() => ({ stock0, d0, r: rEff, LT, airLT, hasAir, S, poUnits }), [stock0, d0, rEff, LT, airLT, hasAir, S, poUnits]);
+  const ppKey = JSON.stringify(placedPos || []); // parent builds a fresh array each render
+  const inp: PlanInput = useMemo(() => ({ stock0, d0, r: rEff, LT, airLT, hasAir, S, placedPos: JSON.parse(ppKey) }), [stock0, d0, rEff, LT, airLT, hasAir, S, ppKey]);
   const cum = useMemo(() => buildCum(d0, rEff), [d0, rEff]);
   const sys = useMemo(() => recommendTotal(inp, cum), [inp, cum]);
 
@@ -46,25 +52,35 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
   const n = mode === "manual" ? man.length : (nOv ?? nAuto);
   const units = mode === "manual" ? man : splitUnits(total, Math.max(1, n));
   const unitsKey = units.join(",");
-  const plan = useMemo(() => planShipments(inp, units, cum, airOv), [inp, cum, unitsKey, airOv]);
+  const plan = useMemo(() => planShipments(inp, units, cum, airOv, moves), [inp, cum, unitsKey, airOv, moves]);
 
   planRef.current = plan; inpRef.current = inp; // latest values for the drag timer
-  const lastEnd = Math.max(plan.stockRow.tZero, plan.placed?.tZero ?? 0, ...plan.bars.map(b => b.tZero));
+  ctxRef.current = { cum, airOv, moves };
+  const lastEnd = Math.max(plan.stockRow.tZero, ...plan.placed.map(p => p.tZero), ...plan.bars.map(b => b.tZero));
   const maxDay = Math.min(AXIS_CAP, Math.max(200, boost, Math.ceil(Math.min(lastEnd, PP_MAXH) + 10)));
+  maxDayRef.current = maxDay;
   const W = 1000, padL = 78, padR = 64, plotW = W - padL - padR;
   const x = (d: number) => padL + Math.max(0, Math.min(d, maxDay)) / maxDay * plotW;
   const axisH = 30, rowH = 40;
-  const pl = plan.placed;
-  const rows = 1 + (pl ? 1 : 0) + (plan.air ? 1 : 0) + plan.bars.length;
+  const placed = plan.placed;
+  const nMoved = Object.keys(moves).length;
+  const rows = 1 + placed.length + (plan.air ? 1 : 0) + plan.bars.length;
+  // drop moves whose layer no longer exists (PO list, Include PO or shipment count changed)
+  const layerKey = [...placed.map(p => p.id), ...plan.bars.map(b => b.id)].join("|");
+  useEffect(() => {
+    const ids = new Set(layerKey.split("|"));
+    setMoves(m => (Object.keys(m).every(k => ids.has(k)) ? m : Object.fromEntries(Object.entries(m).filter(([k]) => ids.has(k)))));
+  }, [layerKey]);
+  const newFloor = hasAir && airLT > 0 && airLT < LT ? airLT : LT; // earliest a new order can arrive
   const H = axisH + rows * rowH + 10;
   const tickStep = maxDay > 400 ? 60 : 30;
   const ticks: number[] = []; for (let d = 0; d <= maxDay; d += tickStep) ticks.push(d);
   const trendPct = Math.round((r - 1) * 100);
-  const dirty = mode === "manual" || totOv !== null || nOv !== null || airOv !== null;
+  const dirty = mode === "manual" || totOv !== null || nOv !== null || airOv !== null || nMoved > 0 || !follow;
   const sr = plan.stockRow;
   const flatDays = d0 > 0 ? Math.floor(stock0 / d0) : 0;
 
-  function resetAll() { setMode("auto"); setTotOv(null); setNOv(null); setAirOv(null); setEdit(null); }
+  function resetAll() { setMode("auto"); setTotOv(null); setNOv(null); setAirOv(null); setMoves({}); setFollow(true); setEdit(null); setTip(null); }
   function toManual() { setMan(units.slice()); setMode("manual"); }
   function toAuto() { setTotOv(total); setNOv(null); setMode("auto"); }
   function onTotal(raw: string) {
@@ -101,17 +117,44 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
       setBoost(dg.maxDay);
       applyDrag(dg.vx);
     }, 80);
-    setDragInfo({ day: startDay, cover: Math.max(0, startDay - startOf), label, verb: k === -2 ? "adds" : "covers" });
+    setDragInfo({ day: startDay, text: k === -2 ? `Covered to ${dayLabel(anchor, startDay)}` : `${dayLabel(anchor, startDay)} · covers ${Math.max(0, startDay - startOf)}d` });
+    try { (e.currentTarget as Element).setPointerCapture(e.pointerId); } catch (_) {}
+  }
+  // Drag the bar itself: move its arrival earlier or later, like sliding a clip on a timeline.
+  // Touch only moves from the small grip so the page can still scroll.
+  function onMoveDown(e: any, id: string, arrival: number, floor: number, label: string, editInfo: { k: number; units: number } | null, grip = false) {
+    if (e.pointerType === "touch" && !grip) return;
+    if (e.button > 0) return;
+    e.preventDefault();
+    setTip(null); setEdit(null);
+    const rect = svgRef.current!.getBoundingClientRect();
+    const vx = (e.clientX - rect.left) / rect.width * W;
+    const grab = (vx - padL) / plotW * maxDayRef.current - arrival; // where inside the bar it was grabbed, in days
+    drag.current = { mode: "move", id, floor, label, grab, moved: false, edit: editInfo, ev: rel(e), vx, startArr: arrival, edge: false, timer: null };
+    setDragInfo({ day: arrival, text: `${label} arrives ${dayLabel(anchor, arrival)}` });
     try { (e.currentTarget as Element).setPointerCapture(e.pointerId); } catch (_) {}
   }
   function applyDrag(vx: number) {
     const dg = drag.current; if (!dg) return;
+    if (dg.mode === "move") {
+      if (!dg.moved && Math.abs(vx - dg.vx) < 4) return;
+      dg.moved = true;
+      const md = maxDayRef.current;
+      const d = Math.round(Math.max(dg.floor, Math.min(md, (vx - padL) / plotW * md - dg.grab)));
+      setMoves(m => (m[dg.id] === d ? m : { ...m, [dg.id]: d }));
+      setDragInfo({ day: d, text: `${dg.label} arrives ${dayLabel(anchor, d)}${d !== dg.startArr ? ` (${Math.abs(d - dg.startArr)}d ${d < dg.startArr ? "earlier" : "later"})` : ""}` });
+      return;
+    }
     const day = Math.max(0, Math.min(dg.maxDay, (vx - padL) / plotW * dg.maxDay));
     const dayR = Math.round(day);
-    setDragInfo({ day: dayR, cover: Math.max(0, dayR - dg.startOf), label: dg.label, verb: dg.k === -2 ? "adds" : "covers" });
-    if (dg.k === -2) { setAirOv(unitsForAirEndDay(planRef.current, inpRef.current, day)); return; }
+    const { cum: cm, airOv: ao, moves: mv } = ctxRef.current;
+    if (dg.k === -2) {
+      setDragInfo({ day: dayR, text: `Covered to ${dayLabel(anchor, dayR)}` });
+      setAirOv(unitsForAirEndDay(inpRef.current, dg.units, day, cm, mv)); return;
+    }
+    setDragInfo({ day: dayR, text: `${dayLabel(anchor, dayR)} · covers ${Math.max(0, dayR - dg.startOf)}d` });
     const next = dg.units.slice();
-    next[dg.k] = unitsForEndDay(planRef.current, inpRef.current, dg.units, dg.k, day);
+    next[dg.k] = unitsForEndDay(inpRef.current, dg.units, dg.k, day, cm, ao, mv);
     dg.units = next;
     setMan(next); setMode("manual");
   }
@@ -119,13 +162,15 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
     const dg = drag.current; if (!dg || !svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
     const vx = (e.clientX - rect.left) / rect.width * W;
-    dg.vx = vx;
-    dg.edge = (vx - padL) / plotW > 0.93;
+    if (dg.mode !== "move") { dg.vx = vx; dg.edge = (vx - padL) / plotW > 0.93; }
     applyDrag(vx);
   }
   function onUp() {
-    if (drag.current?.timer) window.clearInterval(drag.current.timer);
+    const dg = drag.current;
+    if (dg?.timer) window.clearInterval(dg.timer);
     drag.current = null; setDragInfo(null); setBoost(0);
+    // a press on a new order that never moved is a click: open the units editor
+    if (dg?.mode === "move" && !dg.moved && dg.edit) setEdit({ kind: "po", k: dg.edit.k, ...dg.ev, val: String(Math.round(dg.edit.units)) });
   }
 
   // ── themed tooltip + click-to-edit ──
@@ -165,20 +210,31 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
 
   // Quick-decision facts, read straight off the plan
   const nextPo = plan.bars.find(b => b.units > 0) ?? plan.bars[0];
-  // Days each layer really adds (not the overlap with whatever is still on hand when it arrives)
-  const baseEnd0 = Math.max(sr.tZero, pl?.tZero ?? 0);                              // stock (+ placed PO) alone
-  const airAdds = plan.air ? Math.max(0, plan.air.tEnd - Math.max(baseEnd0, plan.air.arrive)) : 0;
-  const afterAirEnd = plan.air ? Math.max(baseEnd0, plan.air.tEnd) : baseEnd0;       // end date once air is counted
-  const prevEnd = (k: number) => (k === 0 ? afterAirEnd : plan.bars[k - 1].tZero);   // end date before PO k
-  const coveredTo = Math.max(sr.tZero, pl?.tZero ?? 0, ...plan.bars.filter(b => b.units > 0).map(b => b.tZero), plan.air?.tEnd ?? 0);
+  // Everything already on hand or ordered, before any air or new order: where the chain would end
+  const placedEnd = Math.max(sr.tZero, ...placed.map(p => p.tZero));
+  const airAdds = (() => { // days of sales the air units feed
+    if (!plan.air) return 0;
+    const a = plan.air.arrive, c = plan.cum, base = c[Math.min(a, PP_MAXH)];
+    let dd = 0; while (a + dd < PP_MAXH && c[a + dd + 1] - base <= plan.air.u) dd++;
+    return dd;
+  })();
+  const afterAirEnd = plan.air ? Math.max(placedEnd, plan.air.tEnd) : placedEnd;      // end date once air is counted
+  const prevEnd = (k: number) => (k === 0 ? afterAirEnd : plan.bars[k - 1].tZero);   // end date before new PO k
+  const coveredTo = Math.max(sr.tZero, ...placed.map(p => p.tZero), ...plan.bars.filter(b => b.units > 0).map(b => b.tZero), plan.air?.tEnd ?? 0);
+  const placedLabel = (p: any) => (p.etaDay != null ? `ETA ${dayLabel(anchor, p.etaDay)}` : "Placed");
+  const overdueOf = (p: any) => (inp.placedPos || []).some((q: any) => q.overdue && q.etaDay === p.etaDay);
+  const airTooSlow = hasAir && !plan.air && airOv === null && gap > 0;
   const facts: { k: string; v: string; bad?: boolean }[] = [
     { k: "Stock lasts", v: `${stockDays}d · ${dayLabel(anchor, sr.tZero)}` },
-    ...(pl ? [{ k: "Placed PO", v: `arrives ${dayLabel(anchor, pl.arrival)} · lasts to ${dayLabel(anchor, pl.tZero)}` }] : []),
-    ...(plan.air ? [{ k: "Air", v: `${fmt(plan.air.u)} u · arrives ${dayLabel(anchor, plan.air.arrive)} · adds ${airAdds}d, stock + air last to ${dayLabel(anchor, plan.air.tEnd)}` }] : []),
+    ...placed.map(p => ({ k: p.etaDay != null ? `PO ETA ${dayLabel(anchor, p.etaDay)}` : "Placed PO", v: `${fmt(p.units)} u · arrives ${dayLabel(anchor, p.arrival)}${p.moved ? " (moved)" : ""} · lasts to ${dayLabel(anchor, p.tZero)}` })),
+    ...(plan.air ? [{ k: plan.air.reason === "manual" ? "Air" : "Air recommended", v: `${fmt(plan.air.u)} u · arrives ${dayLabel(anchor, plan.air.arrive)} · ${plan.air.reason === "gap" ? "bridges the gap before the first delivery" : plan.air.reason === "late" ? "bridges the wait for sea" : `feeds ${airAdds}d of sales`}` }] : []),
+    ...(airTooSlow ? [{ k: "Air too slow", v: `takes ${airLT}d, the first delivery arrives in ${sr.gapEnd}d`, bad: true }] : []),
     ...(nextPo && nextPo.units > 0 ? [{ k: "Next order", v: nextPo.late > 0 ? `today (${nextPo.late}d late) · arrives ${dayLabel(anchor, nextPo.arrival)}` : `by ${dayLabel(anchor, nextPo.order)} · arrives ${dayLabel(anchor, nextPo.arrival)}`, bad: nextPo.late > 0 }]
       : nextPo ? [{ k: "Next order", v: `by ${dayLabel(anchor, nextPo.order)} (arrives ${dayLabel(anchor, nextPo.arrival)})` }] : []),
     { k: "Covered to", v: `${dayLabel(anchor, coveredTo)} (${coveredTo}d)` },
     ...(gap > 0 ? [{ k: "No stock", v: `${gap}d before the first delivery`, bad: true }] : []),
+    ...(placed.some(overdueOf) ? [{ k: "ETA passed", v: "counted as arriving today", bad: true }] : []),
+    ...(nMoved > 0 ? [{ k: "What-if", v: `${nMoved} moved · not saved to the sheet` }] : []),
   ];
 
   // Tips shown under the ⓘ button, grouped
@@ -186,8 +242,8 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
     { h: "This plan", items: [
       `Stock ${fmt(stock0)} u lasts ${stockDays} days${follow && trendPct !== 0 ? `, with the ${trendPct >= 0 ? "+" : ""}${trendPct}% trend (${flatDays}d at flat demand, the Days of Inventory basis)` : ""}.`,
       `Demand ${d0.toFixed(1)}/day · Sea ${LT}d${hasAir ? ` · Air ${airLT}d` : ""} · Safety ${S}d.`,
-      ...(pl ? [`${fmt(pl.units)} u PO already placed, counted right after the stock.`] : []),
-      ...(gap > 0 ? [`${gap} days with no stock before the first delivery arrives.`] : []),
+      ...(placed.length ? [`${fmt(placed.reduce((a, p) => a + p.units, 0))} u already ordered. A PO with an ETA in the sheet starts on that date, one without starts where the stock above enters its safety stretch.`] : []),
+      ...(gap > 0 ? [`${gap} days with no stock before the first delivery arrives.${plan.air ? " The air bridge is sized to cover it." : ""}`] : []),
     ] },
     { h: "Reading the bars", items: [
       `Solid part is cover you can sell. The hatched end is the last ${S} days, kept as safety.`,
@@ -196,9 +252,11 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
       "The Air bar is stock flown in to cover the gap until a sea order arrives.",
     ] },
     { h: "Editing", items: [
-      "Click a bar to type its units.",
+      "Click a new order to type its units.",
       "Drag a bar's white edge to extend or shorten it. Hold at the right edge to widen the timeline (up to 720 days).",
-      "Stock and the placed PO are fixed here.",
+      "Drag the bar itself to move its arrival earlier or later (on touch, use the small grip on its left). Orders below it re-line up behind it.",
+      "An order moved earlier than the sea lead time is split: the early part is air freight (light purple).",
+      "Moves are a what-if only. Nothing is saved to the sheet. Reset puts everything back.",
       "Fields outlined in purple are values you set. The rest are automatic.",
     ] },
   ];
@@ -217,14 +275,27 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
     </g>
   );
 
+  // Small grip on a bar's left end: the only place a touch drag moves it (so the page still scrolls)
+  const grip = (cx: number, cy: number, down: (e: any) => void) => (
+    <g style={{ cursor: "grab", touchAction: "none" }} onPointerDown={down}>
+      <rect x={cx} y={cy - 10} width="14" height="20" fill="transparent" />
+      <line x1={cx + 5} x2={cx + 5} y1={cy - 4} y2={cy + 4} stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" opacity=".8" pointerEvents="none" />
+      <line x1={cx + 8.5} x2={cx + 8.5} y1={cy - 4} y2={cy + 4} stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" opacity=".8" pointerEvents="none" />
+    </g>
+  );
+
   // One rounded bar per layer: the safety stretch is the hatched end of the SAME bar (clipped inside it)
   const candle = (id: string, x0: number, xs: number, x1: number, cy: number, fill: string, o: any = {}) => {
+    const airW = o.airTo != null ? Math.max(0, Math.min(o.airTo, x1) - x0) : 0; // early part flown in by air
+    xs = Math.max(xs, x0 + airW); // the safety stretch only starts once the sea part begins
     const w = Math.max(2, x1 - x0), hatchW = Math.max(0, x1 - xs), cid = `pp-c-${id}`;
     return (
-      <g className={o.onClick ? "pp-bar" : undefined} style={o.onClick ? clickable : undefined} onClick={o.onClick} {...(o.tp || {})}>
+      <g className={o.onClick || o.onDown ? "pp-bar" : undefined} style={o.onDown ? { cursor: "grab" } : o.onClick ? clickable : undefined} onClick={o.onClick} onPointerDown={o.onDown} {...(o.tp || {})}>
         <clipPath id={cid}><rect x={x0} y={cy - 10} width={w} height="20" rx="5" /></clipPath>
         <g clipPath={`url(#${cid})`}>
           <rect x={x0} y={cy - 10} width={w} height="20" fill={fill} />
+          {airW > 0.5 && <rect x={x0} y={cy - 10} width={airW} height="20" fill={P.air} />}
+          {airW > 0.5 && airW < w - 0.5 && <line x1={x0 + airW} x2={x0 + airW} y1={cy - 10} y2={cy + 10} stroke={P.po} strokeWidth="1.5" strokeDasharray="3 2" />}
           {hatchW > 0.5 && <rect x={xs} y={cy - 10} width={hatchW} height="20" fill="url(#pp-hatch)" />}
           {hatchW > 0.5 && xs - x0 > 0.5 && <line x1={xs} x2={xs} y1={cy - 10} y2={cy + 10} stroke={P.tail} strokeWidth="1" opacity=".7" />}
         </g>
@@ -290,7 +361,7 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
             <input type="checkbox" checked={follow} onChange={e => setFollow(e.target.checked)} />
             Follow trend
           </label>
-          {dirty && <button type="button" onClick={resetAll} title="Back to the system recommendation and auto split" style={{ marginLeft: "auto", height: 32, padding: "0 16px", fontSize: 13, fontWeight: 600, background: t.surface, border: `1px solid ${t.border2}`, borderRadius: 999, color: t.text, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "inherit" }}>↺ Reset to system ({fmt(sys)})</button>}
+          <button type="button" onClick={resetAll} disabled={!dirty} title="Put everything back to the default plan: system total, auto split, no moves, no air override" style={{ marginLeft: "auto", height: 32, padding: "0 16px", fontSize: 13, fontWeight: 600, background: dirty ? "#ffffff" : t.surface, border: `1px solid ${dirty ? "#ffffff" : t.border2}`, borderRadius: 999, color: dirty ? "#0f172a" : t.text, cursor: dirty ? "pointer" : "default", opacity: dirty ? 1 : .45, display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "inherit" }}>↺ Reset</button>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
           {facts.map(f => (
@@ -341,44 +412,51 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
                 );
               })()}
 
-              {/* Already-placed PO (Include PO on) — first layer after current stock */}
-              {pl && (() => {
-                const cy = axisH + rowH + rowH / 2;
-                const bodyW = x(pl.tSafe) - x(pl.arrival), tailW = x(pl.tZero) - x(pl.tSafe);
-                const tp = tipOn(`PO placed · ${fmt(pl.units)} units`, [
-                  "Already ordered: Purchased Units plus open POs (Include PO is on)",
-                  `Counted from ${dayLabel(anchor, pl.arrival)}, when your current stock reaches its safety stretch`,
-                  `Covers ${Math.max(0, pl.tZero - pl.arrival)} days of demand, until ${dayLabel(anchor, pl.tZero)}`,
-                  `The last ${S} days (from ${dayLabel(anchor, pl.tSafe)}) are safety stock`,
-                ]);
+              {/* Orders already placed: start on the sheet ETA (no ETA: where the stock above enters safety) */}
+              {placed.map((pb, i) => {
+                const cy = axisH + (1 + i) * rowH + rowH / 2;
+                const bodyW = x(pb.tSafe) - x(pb.arrival);
+                const cover = Math.max(0, pb.tZero - pb.arrival);
+                const od = overdueOf(pb), n = pb.count || 1;
+                const tooFast = hasAir && airLT > 0 && pb.arrival < airLT && pb.moved;
+                const lines = [
+                  pb.etaDay != null
+                    ? `The sheet says it arrives ${dayLabel(anchor, pb.etaDay)}${od ? " (that date has passed, so it is counted as arriving today)" : ` (day ${pb.etaDay})`}`
+                    : `No arrival date in the sheet, so it is assumed to arrive ${dayLabel(anchor, pb.plannedDay ?? pb.arrival)}, when your stock reaches its safety stretch`,
+                  ...(pb.moved ? [`You moved it from ${dayLabel(anchor, pb.plannedDay ?? pb.arrival)} to ${dayLabel(anchor, pb.arrival)} (${Math.abs(pb.arrival - (pb.plannedDay ?? pb.arrival))} days ${pb.arrival < (pb.plannedDay ?? pb.arrival) ? "earlier" : "later"}). What-if only, the sheet is unchanged`] : []),
+                  ...(tooFast ? [`Air takes ${airLT} days, so this would need an even faster shipment`] : []),
+                  ...(n > 1 ? [`${n} orders with the same date are shown together`] : []),
+                  `Covers ${cover} days of demand, until ${dayLabel(anchor, pb.tZero)}`,
+                  `The last ${S} days (from ${dayLabel(anchor, pb.tSafe)}) are safety stock`,
+                  "Drag to move it earlier or later",
+                ];
+                const tp = tipOn(`${n > 1 ? `${n} POs` : "PO"} placed · ${fmt(pb.units)} units`, lines);
+                const mv = (e: any, g = false) => onMoveDown(e, pb.id as string, pb.arrival, 0, placedLabel(pb), null, g);
                 return (
-                  <g>
-                    <text x={6} y={cy + 4} {...rowLabel}>Placed</text>
-                    {candle("placed", x(pl.arrival), x(pl.tSafe), x(pl.tZero), cy, P.po, { tp, dashed: true })}
-                    {bodyW > 70 && <text x={x(pl.arrival) + 8} y={cy + 4} fontSize="11" fontWeight="600" fill={P.poTx} fontFamily="inherit" pointerEvents="none">{fmt(pl.units)} u placed</text>}
-                    {endTag(x(pl.tZero), cy, pl.tZero - pl.arrival, 8)}
+                  <g key={pb.id}>
+                    <text x={6} y={cy + 4} {...rowLabel}>{placedLabel(pb)}</text>
+                    {candle(`pl${i}`, x(pb.arrival), x(pb.tSafe), x(pb.tZero), cy, P.po, { tp, dashed: true, onDown: mv })}
+                    {bodyW > 90 && <text x={x(pb.arrival) + 20} y={cy + 4} fontSize="11" fontWeight="600" fill={P.poTx} fontFamily="inherit" pointerEvents="none">{fmt(pb.units)} / sea</text>}
+                    {grip(x(pb.arrival), cy, e => mv(e, true))}
+                    {endTag(x(pb.tZero), cy, cover, 8)}
                   </g>
                 );
-              })()}
+              })}
 
               {/* Air bridge */}
               {plan.air && (() => {
-                const cy = axisH + (1 + (pl ? 1 : 0)) * rowH + rowH / 2, a = plan.air;
+                const cy = axisH + (1 + placed.length) * rowH + rowH / 2, a = plan.air;
                 const seaGap = a.until - a.tEnd;
-                const left = baseEnd0 - a.arrive; // days of stock still on hand when the air arrives
-                const tp = tipOn("Air bridge", [
+                const lines = [
                   `${fmt(a.u)} units flown in${airOv !== null ? " (set by you)" : ""}`,
                   `Order today, they arrive ${dayLabel(anchor, a.arrive)} (day ${a.arrive})`,
-                  left > 0
-                    ? `When they arrive, your stock still has about ${left} days left (it would run out ${dayLabel(anchor, baseEnd0)})`
-                    : `Your stock runs out ${-left} days before they arrive, on ${dayLabel(anchor, baseEnd0)}`,
-                  left > 0
-                    ? `The air adds ${airAdds} days: ${left} days of stock + ${airAdds} from the air = ${a.tEnd - a.arrive} days after arrival`
-                    : `The air adds ${airAdds} days of cover`,
-                  `Stock + air last until ${dayLabel(anchor, a.tEnd)}`,
-                  `A sea order placed today arrives ${dayLabel(anchor, a.until)} (day ${a.until}), ${seaGap > 0 ? `${seaGap} day${seaGap === 1 ? "" : "s"} after they run out, so you would be without stock` : seaGap === 0 ? "the day they run out, so there is no gap" : `${-seaGap} day${seaGap === -1 ? "" : "s"} before they run out, so there is no gap`}`,
+                  a.reason === "gap" ? "Recommended: your stock runs out before the next delivery, and air can get here first"
+                    : a.reason === "late" ? "Recommended: a sea order placed today arrives after your stock runs out, so air fills the wait" : "You set this amount",
+                  `They cover about ${airAdds} days of sales`,
+                  `The next delivery after the air arrives ${dayLabel(anchor, a.until)} (day ${a.until})${seaGap > 0 ? `, ${seaGap} day${seaGap === 1 ? "" : "s"} after the air runs out, so you would be without stock` : ""}`,
                   "Click to edit the units · drag the white edge to cover more days",
-                ]);
+                ];
+                const tp = tipOn("Air bridge", lines);
                 return (
                   <g>
                     <text x={6} y={cy + 4} {...rowLabel}>Air</text>
@@ -386,29 +464,35 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
                     <circle cx={x(0)} cy={cy} r="3.5" fill={P.wick} />
                     <text x={x(0) + 8} y={cy - 9} fontSize="10" fill={t.text3} fontFamily="inherit">order today</text>
                     <rect x={x(a.arrive)} y={cy - 10} width={Math.max(2, x(a.tEnd) - x(a.arrive))} height="20" rx="5" fill={P.air} stroke={P.po} strokeWidth="1" className="pp-bar" style={clickable} onClick={e => openEdit(e, "air", 0, a.u)} {...tp} />
-                    <text x={x(a.arrive) + 6} y={cy + 4} fontSize="11" fontWeight="600" fill={P.airTx} fontFamily="inherit" pointerEvents="none">{fmt(a.u)} u</text>
+                    <text x={x(a.arrive) + 6} y={cy + 4} fontSize="11" fontWeight="600" fill={P.airTx} fontFamily="inherit" pointerEvents="none">{fmt(a.u)} / air</text>
                     {endTag(x(a.tEnd), cy, airAdds, 16, "+")}
-                    {trim(x(a.tEnd), cy, e => onDown(e, -2, a.tEnd, Math.max(baseEnd0, a.arrive), `Air · ${fmt(a.u)} u`), "Drag to extend the air bridge")}
+                    {trim(x(a.tEnd), cy, e => onDown(e, -2, a.tEnd, a.arrive, `Air · ${fmt(a.u)} u`), "Drag to extend the air bridge")}
                   </g>
                 );
               })()}
 
-              {/* Purchase orders */}
+              {/* New purchase orders */}
               {plan.bars.map((b, i) => {
-                const ri = 1 + (pl ? 1 : 0) + (plan.air ? 1 : 0) + i, cy = axisH + ri * rowH + rowH / 2;
-                const bodyW = x(b.tSafe) - x(b.arrival), tailW = x(b.tZero) - x(b.tSafe);
+                const ri = 1 + placed.length + (plan.air ? 1 : 0) + i, cy = axisH + ri * rowH + rowH / 2;
+                const bodyW = x(b.tSafe) - x(b.arrival);
                 const cover = Math.max(0, b.tZero - b.arrival);
                 const pe = prevEnd(b.k), added = Math.max(0, b.tZero - pe);
+                const airDays = b.airUntil ? b.airUntil - b.arrival : 0;
+                const airU = airDays > 0 ? Math.min(b.units, Math.round(plan.cum[Math.min(b.airUntil as number, PP_MAXH)] - plan.cum[Math.min(b.arrival, PP_MAXH)])) : 0; // units flown to cover the early days
+                const seaU = b.units - airU;
                 const tp = tipOn(`PO ${b.k + 1} · ${fmt(b.units)} units`, [
                   b.late > 0
                     ? `Order today. That is ${b.late} days later than ideal${plan.air ? ", so the air bridge covers the gap" : ""}`
                     : `Place the order on ${dayLabel(anchor, b.order)} (day ${b.order})`,
                   `It arrives ${dayLabel(anchor, b.arrival)} (day ${b.arrival}), ${Math.max(0, b.arrival - b.order)} days after ordering`,
+                  ...(b.moved && b.plannedDay !== b.arrival ? [`You moved it from ${dayLabel(anchor, b.plannedDay ?? b.arrival)} to ${dayLabel(anchor, b.arrival)}. What-if only`] : []),
+                  ...(airDays > 0 ? [`Sea takes ${LT} days, so the first ${airDays} days (light purple) would have to go by air`, `Split: about ${fmt(airU)} units by air + ${fmt(seaU)} units by sea`] : []),
                   `It adds ${added} days: everything on hand runs out ${dayLabel(anchor, pe)} without it, ${dayLabel(anchor, b.tZero)} with it`,
                   `From its arrival you are covered ${cover} days, until ${dayLabel(anchor, b.tZero)}`,
                   `The last ${S} days (from ${dayLabel(anchor, b.tSafe)}) are your safety stock`,
-                  "Click to edit the units · drag the white edge to cover more days",
+                  "Click to edit the units · drag the bar to move it · drag the white edge to cover more days",
                 ]);
+                const mv = (e: any, g = false) => onMoveDown(e, b.id as string, b.arrival, newFloor, `PO ${b.k + 1}`, { k: b.k, units: b.units }, g);
                 return (
                   <g key={b.k}>
                     <text x={6} y={cy + 4} {...rowLabel}>{`PO ${b.k + 1}`}</text>
@@ -417,8 +501,10 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
                     <text x={x(b.order) + 8} y={cy - 9} fontSize="10.5" fontWeight={b.late > 0 ? 600 : 400} fill={b.late > 0 ? t.red : t.text3} fontFamily="inherit">
                       {b.late > 0 ? `order ${b.late}d late${plan.air ? " — air bridges" : ""}` : `order ${dayLabel(anchor, b.order)}`}
                     </text>
-                    {b.units > 0 && candle(`po${b.k}`, x(b.arrival), x(b.tSafe), x(b.tZero), cy, P.po, { tp, onClick: (e: any) => openEdit(e, "po", b.k, b.units) })}
-                    {bodyW > 52 && <text x={x(b.arrival) + 8} y={cy + 4} fontSize="11" fontWeight="600" fill={P.poTx} fontFamily="inherit" pointerEvents="none">{fmt(b.units)} u</text>}
+                    {b.units > 0 && candle(`po${b.k}`, x(b.arrival), x(b.tSafe), x(b.tZero), cy, P.po, { tp, onDown: mv, airTo: b.airUntil != null ? x(b.airUntil) : undefined })}
+                    {bodyW > 70 && <text x={x(b.arrival) + (airDays > 0 && airDays > 0 ? Math.max(20, x(b.airUntil as number) - x(b.arrival) + 8) : 14)} y={cy + 4} fontSize="11" fontWeight="600" fill={P.poTx} fontFamily="inherit" pointerEvents="none">{airDays > 0 ? (x(b.airUntil as number) - x(b.arrival) > `${fmt(airU)} / air`.length * 6.2 + 24 ? `${fmt(seaU)} / sea` : `${fmt(airU)} / air · ${fmt(seaU)} / sea`) : `${fmt(b.units)} / sea`}</text>}
+                    {airDays > 0 && x(b.airUntil as number) - x(b.arrival) > `${fmt(airU)} / air`.length * 6.2 + 24 && <text x={x(b.arrival) + 20} y={cy + 4} fontSize="11" fontWeight="700" fill={P.airTx} fontFamily="inherit" pointerEvents="none">{fmt(airU)} / air</text>}
+                    {b.units > 0 && grip(x(b.arrival), cy, e => mv(e, true))}
                     {b.units > 0 && endTag(x(b.tZero), cy, cover, 16)}
                     {trim(x(b.tZero), cy, e => onDown(e, b.k, b.tZero, b.arrival, `PO ${b.k + 1} · ${fmt(b.units)} u`), "Drag to extend or shorten this order")}
                   </g>
@@ -426,7 +512,7 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
               })}
 
               {dragInfo && (() => {
-                const lx = x(dragInfo.day), txt = `${dayLabel(anchor, dragInfo.day)} · ${dragInfo.verb} ${dragInfo.cover}d`;
+                const lx = x(dragInfo.day), txt = dragInfo.text;
                 const pw = Math.max(110, txt.length * 6.4 + 18);
                 const px = Math.max(padL, Math.min(lx - pw / 2, W - padR - pw));
                 return (
@@ -474,7 +560,7 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
           {[
             ["current stock", { background: P.stock }],
             ["purchase order", { background: P.po }],
-            ...(pl ? [["PO already placed", { background: P.po, border: `1.5px dashed ${P.tail}` }]] : []),
+            ...(placed.length ? [["PO already placed", { background: P.po, border: `1.5px dashed ${P.tail}` }]] : []),
             ["safety stretch", { background: `repeating-linear-gradient(135deg, ${P.tail} 0 2px, transparent 2px 5px), ${P.po}`, opacity: .85 }],
             ...(hasAir ? [["air bridge", { background: P.air, border: `1px solid ${P.po}` }]] : []),
           ].map(([label, sw]: any) => (
@@ -484,6 +570,9 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
           ))}
           <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
             <span style={{ width: 7, height: 14, borderRadius: 4, background: "#fff", border: `1.5px solid ${P.po}`, display: "inline-block" }} />drag edge to extend
+          </span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
+            <span style={{ width: 16, height: 10, borderRadius: 3, background: P.po, display: "inline-block", cursor: "grab" }} />drag bar to move
           </span>
         </div>
       </>}

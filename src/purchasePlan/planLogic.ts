@@ -4,15 +4,23 @@
    Model, in days from today:
    • Demand starts at today's rate and moves to the 7d/30d trend over 30 days
      (trend factor clamped to 0.5–1.5), then holds.
-   • "Current stock" is the starting layer: it lasts until cumulative demand eats it.
-     Its last `safetyDays` of demand is the safety stretch (tSafe → tZero).
-   • Each purchase order (PO) lands the day the previous layer enters its safety
-     stretch, so stock never dips into safety without a shipment already arriving.
-   • If sea can't land in time (lead time > days until safety), the order is late;
-     an air bridge covers the gap until sea lands, when air is available.
+   • Stock is simulated day by day with a floor at zero: demand that happens
+     while the shelf is empty is lost, it never "eats" a later delivery.
+   • "Current stock" is the starting layer. Its last `safetyDays` of demand is
+     the safety stretch.
+   • Placed POs (Include PO on) arrive on their sheet ETA. A PO with no ETA is
+     assumed to arrive when stock (plus ETA'd POs) enters its safety stretch.
+     POs sharing an ETA form one candle; different ETAs are separate candles.
+   • New orders chain: each lands when the layer before it enters safety.
+   • Air bridges any unmet demand between the air lead time and the first sea
+     delivery (a gap before a PO's ETA, or a sea order that cannot arrive in time).
+   • Candles can be moved (what-if). A new order pulled earlier than the sea
+     lead time keeps its early part as air.
 ═══════════════════════════════════════════════════════════════ */
 
 export const PP_MAXH = 900;
+
+export type PlacedPo = { id: string; label: string; units: number; etaDay: number | null; overdue?: boolean };
 
 export type PlanInput = {
   stock0: number;      // enabled planning stock (see getStartStock)
@@ -22,22 +30,31 @@ export type PlanInput = {
   airLT: number;       // air lead time, days (0 = none)
   hasAir: boolean;
   S: number;           // safety stock, days
-  poUnits?: number;    // units already ordered (manual Purchased Units + open POs) when Include PO is on
+  placedPos?: PlacedPo[]; // POs already ordered (only when Include PO is on)
+  poUnits?: number;       // legacy: total placed units with no ETA
 };
 
 export type PlanBar = {
-  k: number; units: number; // k = -1 for the already-placed PO layer
+  k: number; units: number; // k < 0 for placed layers
   order: number; arrival: number; tSafe: number; tZero: number;
   late: number;
+  id?: string;                 // layer id used for moves ("p:<etaDay>", "p:rule", "n:<k>")
+  label?: string;
+  etaDay?: number | null;      // sheet ETA (placed layers)
+  plannedDay?: number;         // arrival before any move
+  moved?: boolean;
+  airUntil?: number;           // new order pulled before the sea lead time: [arrival, airUntil) is air
+  count?: number;              // how many POs share this candle
 };
 
 export type Plan = {
   stockRow: { tSafe: number; tZero: number; gapStart: number; gapEnd: number };
-  air: { u: number; arrive: number; until: number; tEnd: number } | null; // tEnd = day the air units run out
-  placed: PlanBar | null;   // already-ordered PO layer, lands where current stock enters safety
-  bars: PlanBar[];
+  air: { u: number; arrive: number; until: number; tEnd: number; reason: "gap" | "late" | "manual" } | null;
+  placed: PlanBar[];        // already-ordered layers, in arrival order
+  bars: PlanBar[];          // new orders
   late: number;
   cum: Float64Array;
+  firstDelivery: number;    // earliest arrival of anything (air, placed, new)
 };
 
 /** Trend factor from the 7d / 30d averages, clamped so a spike can't blow up the plan. */
@@ -48,14 +65,9 @@ export function trendRatio(avg7: number, avg30: number): number {
 
 /** Starting stock = the page's planning stock (FBA + FC Transfer + FC + Inbound, each following its
     toggle, plus manual Add Inbound). PO units are NOT folded in here: with "Include PO" on they are
-    drawn as their own already-placed layer after the stock (see PlanInput.poUnits). */
+    drawn as their own already-placed layers (see PlanInput.placedPos). */
 export function getStartStock(effectiveStock: number): number {
   return Math.max(0, effectiveStock || 0);
-}
-
-/** Units already ordered, counted only when "Include PO" is on. */
-export function getPlacedPoUnits(manualPurchased: number, openPoUnits: number, inclPO: boolean): number {
-  return inclPO ? Math.max(0, (manualPurchased || 0) + (openPoUnits || 0)) : 0;
 }
 
 /** cum[t] = units demanded before day t starts. */
@@ -73,25 +85,14 @@ export function splitUnits(total: number, n: number): number[] {
 }
 
 const at = (cum: Float64Array, t: number) => cum[Math.max(0, Math.min(Math.round(t), PP_MAXH))];
+const clampDay = (d: number) => Math.max(0, Math.min(PP_MAXH - 1, Math.round(d)));
+const EPS = 1e-6;
 
-/** Units needed in the air bridge so stock lasts until sea lands (0 if none needed / no air). */
-function airBridge(cum: Float64Array, inp: PlanInput, extra = 0): { u: number; arrive: number; until: number; tEnd: number } | null {
-  const { stock0, LT, airLT, hasAir } = inp;
-  if (!hasAir || !(airLT > 0) || !(airLT < LT)) return null;
-  const u = Math.max(0, Math.ceil(at(cum, LT) - stock0 - extra));
-  return u > 0 ? { u, arrive: airLT, until: LT, tEnd: LT } : null;
-}
-
-/** System recommendation for sea units: cover lead time + safety, following the trend,
-    after current stock and the air bridge (same idea as the Shipment Plan card, trend-aware). */
-export function recommendTotal(inp: PlanInput, cum?: Float64Array): number {
-  const c = cum ?? buildCum(inp.d0, inp.r);
-  const po = Math.max(0, inp.poUnits ?? 0);
-  const base = inp.stock0 + po; // placed PO counts as stock for the recommendation
-  const t0 = firstDay(c, inp, 0, t => base - at(c, t) <= safeAt(c, inp.S, t));
-  const late = t0 < inp.LT;
-  const air = late ? airBridge(c, inp, po) : null;
-  return Math.max(0, Math.round(at(c, inp.LT + inp.S) - base - (air?.u ?? 0)));
+function placedList(inp: PlanInput): PlacedPo[] {
+  const l = inp.placedPos && inp.placedPos.length
+    ? inp.placedPos
+    : ((inp.poUnits ?? 0) > 0 ? [{ id: "manual", label: "PO", units: inp.poUnits as number, etaDay: null }] : []);
+  return l.filter(p => p.units > 0);
 }
 
 /** Auto shipment count: about one per 90 days of cover. */
@@ -101,85 +102,190 @@ export function autoShipmentCount(cum: Float64Array, total: number): number {
   return Math.min(6, Math.max(1, Math.ceil(days / 90)));
 }
 
-const safeAt = (cum: Float64Array, S: number, t: number) => at(cum, t + S) - at(cum, t);
-function firstDay(_cum: Float64Array, _inp: PlanInput, from: number, pred: (t: number) => boolean): number {
-  for (let t = Math.max(0, from); t <= PP_MAXH; t++) if (pred(t)) return t;
-  return PP_MAXH;
-}
-
-/** airOverride: null = automatic bridge; a number = user-set air units (0 = none). */
-export function planShipments(inp: PlanInput, units: number[], cumIn?: Float64Array, airOverride: number | null = null): Plan {
-  const { stock0, LT, S } = inp;
+/** airOverride: null = automatic bridge; a number = user-set air units (0 = none).
+    moves: layer id → arrival day the user dragged it to (what-if). */
+export function planShipments(
+  inp: PlanInput, units: number[], cumIn?: Float64Array,
+  airOverride: number | null = null, moves: Record<string, number> = {},
+): Plan {
+  const { stock0, LT, S, airLT, hasAir } = inp;
+  const H = PP_MAXH;
   const cum = cumIn ?? buildCum(inp.d0, inp.r);
-  const safe = (t: number) => safeAt(cum, S, t);
-  const arr: { t: number; u: number }[] = [];
-  const stockAt = (t: number) => {
-    let s = stock0 - at(cum, t);
-    for (const a of arr) if (a.t <= t) s += a.u;
-    return s;
+  const dem = (t: number) => at(cum, t + 1) - at(cum, t);
+  const safe = (t: number) => at(cum, t + S) - at(cum, t);
+
+  // stock at the START of each day (after that day's arrivals), floored at zero
+  const sim = (arrs: { t: number; u: number }[]) => {
+    const add = new Float64Array(H + 1);
+    arrs.forEach(a => { if (a.t >= 0 && a.t <= H) add[a.t] += a.u; });
+    const st = new Float64Array(H + 1);
+    st[0] = stock0 + add[0];
+    for (let t = 1; t <= H; t++) st[t] = Math.max(0, st[t - 1] - dem(t - 1)) + add[t];
+    return st;
   };
-  const first = (from: number, pred: (t: number) => boolean) => firstDay(cum, inp, from, pred);
+  const firstIn = (st: Float64Array, from: number, pred: (s: number, t: number) => boolean) => {
+    for (let t = Math.max(0, from); t <= H; t++) if (pred(st[t], t)) return t;
+    return H;
+  };
 
-  // Layer 1: current stock on its own
-  const tSafe0 = first(0, t => stock0 - at(cum, t) <= safe(t));
-  const tZero0 = first(0, t => stock0 - at(cum, t) <= 0);
+  // ── layer 0: current stock on its own ──
+  const st0 = sim([]);
+  const tSafe0 = firstIn(st0, 0, (s, t) => s <= safe(t) + EPS);
+  const tZero0 = firstIn(st0, 0, s => s <= EPS);
 
-  // Already-placed PO (Include PO on): lands where current stock enters safety, as the first layer after it
-  const po = Math.max(0, Math.round(inp.poUnits ?? 0));
-  let placed: PlanBar | null = null;
-  if (po > 0) {
-    arr.push({ t: tSafe0, u: po });
-    const ts = first(tSafe0, t => stockAt(t) <= safe(t));
-    const tz = first(tSafe0, t => stockAt(t) <= 0);
-    placed = { k: -1, units: po, arrival: tSafe0, order: tSafe0, tSafe: ts, tZero: tz, late: 0 };
+  // ── placed POs: group by ETA, assumed arrival for the no-ETA group ──
+  type G = { id: string; label: string; units: number; etaDay: number | null; count: number; arrival: number; planned: number };
+  const gm = new Map<string, G>();
+  placedList(inp).forEach(p => {
+    const eta = p.etaDay === null || p.etaDay === undefined ? null : clampDay(p.etaDay);
+    const id = "p:" + (eta === null ? "rule" : eta);
+    const g = gm.get(id) || { id, label: "", units: 0, etaDay: eta, count: 0, arrival: 0, planned: 0 };
+    g.units += p.units; g.count += 1; g.label = g.label ? g.label + ", " + p.label : p.label;
+    gm.set(id, g);
+  });
+  const groups = [...gm.values()];
+  const arrAll: { t: number; u: number }[] = [];
+  groups.filter(g => g.etaDay !== null).forEach(g => {
+    g.planned = g.etaDay as number;
+    g.arrival = clampDay(moves[g.id] ?? g.planned);
+    arrAll.push({ t: g.arrival, u: g.units });
+  });
+  const ruleG = groups.find(g => g.etaDay === null);
+  if (ruleG) {
+    const stE = sim(arrAll);
+    ruleG.planned = firstIn(stE, 0, (s, t) => s <= safe(t) + EPS);   // assumed: when stock + ETA'd POs enter safety
+    ruleG.arrival = clampDay(moves[ruleG.id] ?? ruleG.planned);
+    arrAll.push({ t: ruleG.arrival, u: ruleG.units });
   }
-  const baseSafe = placed ? placed.tSafe : tSafe0;
+  const sorted = [...groups].sort((a, b) => a.arrival - b.arrival);
+  const placed: PlanBar[] = [];
+  const arrSoFar: { t: number; u: number }[] = [];
+  sorted.forEach((g, i) => {
+    arrSoFar.push({ t: g.arrival, u: g.units });
+    const st = sim(arrSoFar);
+    placed.push({
+      k: -1 - i, units: g.units, id: g.id, label: g.label, etaDay: g.etaDay, count: g.count,
+      arrival: g.arrival, order: g.arrival, plannedDay: g.planned, moved: g.arrival !== g.planned, late: 0,
+      tSafe: firstIn(st, g.arrival, (s, t) => s <= safe(t) + EPS),
+      tZero: firstIn(st, g.arrival, s => s <= EPS),
+    });
+  });
 
+  // ── where the stock + placed POs leave off ──
+  const lastPlacedArr = placed.length ? Math.max(...placed.map(p => p.arrival)) : 0;
+  const stAll = sim(arrAll);
+  const baseSafe = placed.length ? firstIn(stAll, lastPlacedArr, (s, t) => s <= safe(t) + EPS) : tSafe0;
   const late = Math.max(0, LT - baseSafe);
-  let air = late > 0 ? airBridge(cum, inp, placed && placed.arrival < LT ? po : 0) : null;
-  if (airOverride !== null && inp.hasAir && inp.airLT > 0 && inp.airLT < inp.LT) {
-    air = airOverride > 0 ? { u: Math.round(airOverride), arrive: inp.airLT, until: inp.LT, tEnd: inp.LT } : null;
-  }
-  if (air) {
-    // where the air units run out (current stock + placed PO + air only, before any sea order lands)
-    const au = air.u, aa = air.arrive;
-    air = { ...air, tEnd: first(aa, t => stock0 - at(cum, t) + (placed && placed.arrival <= t ? po : 0) + au <= 0) };
-  }
-  if (air) arr.push({ t: air.arrive, u: air.u });
 
+  // earliest a new order can arrive: sea lead time, or the air lead time when air exists
+  const floorArr = hasAir && airLT > 0 && airLT < LT ? airLT : LT;
+  const newArrival = (k: number, prevSafe: number) => {
+    const rule = k === 0 ? Math.max(baseSafe, LT) : prevSafe;
+    const v = moves["n:" + k];
+    return v === undefined ? rule : Math.max(floorArr, clampDay(v));
+  };
+  const hasNew = units.length > 0;
+  const a1 = hasNew ? newArrival(0, 0) : LT;
+
+  // ── air: unmet demand from the air lead time until the first new sea delivery ──
+  const airEligible = hasAir && airLT > 0 && airLT < LT;
+  let air: Plan["air"] = null;
+  if (airEligible) {
+    const T = Math.max(airLT + 1, a1);
+    const add = new Float64Array(H + 1);
+    arrAll.forEach(a => { if (a.t <= H) add[a.t] += a.u; });
+    let s = stock0 + add[0], unmet = 0;
+    for (let t = 0; t < T; t++) {
+      if (t > 0) s += add[t];
+      const d = dem(t);
+      if (t >= airLT) { if (s >= d) s -= d; else { unmet += d - s; s = 0; } }
+      else s = Math.max(0, s - d);
+    }
+    const auto = Math.ceil(unmet - EPS);
+    const u = airOverride !== null ? Math.max(0, Math.round(airOverride)) : auto;
+    if (u > 0) {
+      const stA = sim([...arrAll, { t: airLT, u }]);
+      air = {
+        u, arrive: airLT, until: LT,
+        tEnd: firstIn(stA, airLT, s => s <= EPS),
+        reason: airOverride !== null ? "manual" : (tZero0 < Math.min(a1, ...placed.map(p => p.arrival)) ? "gap" : "late"),
+      };
+    }
+  }
+  const arrBase = air ? [...arrAll, { t: air.arrive, u: air.u }] : [...arrAll];
+
+  // ── new orders, chained ──
   const bars: PlanBar[] = [];
-  let a = Math.max(baseSafe, LT);
+  const arrNew = [...arrBase];
+  let prevSafe = 0;
   for (let k = 0; k < units.length; k++) {
-    if (k > 0) { a = bars[k - 1].tSafe; if (a >= PP_MAXH - 1) break; }
-    arr.push({ t: a, u: units[k] });
-    // A 0-unit order has no cover of its own: collapse it to its landing day (handle only)
-    const tSafe = units[k] > 0 ? first(a, t => stockAt(t) <= safe(t)) : a;
-    const tZero = units[k] > 0 ? first(a, t => stockAt(t) <= 0) : a;
-    bars.push({ k, units: units[k], arrival: a, order: Math.max(0, a - LT), tSafe, tZero, late: k === 0 ? late : 0 });
+    if (k > 0 && prevSafe >= PP_MAXH - 1) break;
+    const a = clampDay(newArrival(k, prevSafe));
+    const airPart = a < LT && hasAir && airLT > 0;     // pulled before the sea lead time: the early part is air
+    arrNew.push({ t: a, u: units[k] });
+    const st = sim(arrNew);
+    // A 0-unit order has no cover of its own: collapse it to its arrival day (handle only)
+    const tSafe = units[k] > 0 ? firstIn(st, a, (s, t) => s <= safe(t) + EPS) : a;
+    const tZero = units[k] > 0 ? firstIn(st, a, s => s <= EPS) : a;
+    bars.push({
+      k, units: units[k], id: "n:" + k, arrival: a, tSafe, tZero,
+      plannedDay: clampDay(k === 0 ? Math.max(baseSafe, LT) : prevSafe),
+      order: airPart ? 0 : Math.max(0, a - LT),
+      late: k === 0 && moves["n:0"] === undefined ? late : 0,
+      moved: moves["n:" + k] !== undefined, airUntil: airPart ? LT : undefined,
+    });
+    prevSafe = tSafe;
   }
 
-  // Days with nothing on the shelf before the first replenishment lands
-  const firstLanding = Math.min(air ? air.arrive : PP_MAXH, placed ? placed.arrival : PP_MAXH, bars[0]?.arrival ?? PP_MAXH);
-  const gapStart = tZero0, gapEnd = Math.max(tZero0, firstLanding);
+  // ── gap before the first delivery of any kind ──
+  const arrivals = [...placed.map(p => p.arrival), ...(air ? [air.arrive] : []), ...(bars[0] ? [bars[0].arrival] : [])];
+  const firstDelivery = arrivals.length ? Math.min(...arrivals) : PP_MAXH;
+  const gapStart = tZero0, gapEnd = Math.max(tZero0, firstDelivery);
 
-  return { stockRow: { tSafe: tSafe0, tZero: tZero0, gapStart, gapEnd }, air, placed, bars, late, cum };
+  return { stockRow: { tSafe: tSafe0, tZero: tZero0, gapStart, gapEnd }, air, placed, bars, late, cum, firstDelivery };
 }
 
-/** Units for shipment k so its cover runs out on `day` (used when dragging its end handle). */
-export function unitsForEndDay(plan: Plan, inp: PlanInput, units: number[], k: number, day: number): number {
-  const prev = units.slice(0, k).reduce((s, v) => s + v, 0);
+/** System recommendation for sea units: cover lead time + safety, following the trend and the
+    real arrival days of placed POs, after current stock and the air bridge. */
+export function recommendTotal(inp: PlanInput, cum?: Float64Array): number {
+  const c = cum ?? buildCum(inp.d0, inp.r);
+  const p = planShipments(inp, [], c, null, {});
+  const horizon = inp.LT + inp.S;
+  const placedBy = p.placed.reduce((s, b) => s + (b.arrival <= horizon ? b.units : 0), 0);
+  return Math.max(0, Math.round(at(c, horizon) - inp.stock0 - placedBy - (p.air?.u ?? 0)));
+}
+
+/** Units for new order k so its cover runs out on `day` (end-handle drag). Smallest u that reaches it. */
+export function unitsForEndDay(
+  inp: PlanInput, units: number[], k: number, day: number, cum: Float64Array,
+  airOverride: number | null, moves: Record<string, number>,
+): number {
   const d = Math.max(0, Math.min(PP_MAXH, Math.round(day)));
-  return Math.max(0, Math.round(plan.cum[d] - inp.stock0 - (plan.placed?.units ?? 0) - (plan.air?.u ?? 0) - prev));
+  const reach = (u: number) => {
+    const us = units.slice(); us[k] = u;
+    return planShipments(inp, us, cum, airOverride, moves).bars[k]?.tZero ?? 0;
+  };
+  if (reach(0) >= d) return 0;
+  let lo = 0, hi = Math.max(1000, Math.ceil(cum[PP_MAXH]));
+  if (reach(hi) < d) return hi;
+  for (let i = 0; i < 40 && hi - lo > 1; i++) { const mid = (lo + hi) >> 1; if (reach(mid) >= d) hi = mid; else lo = mid; }
+  return hi;
+}
+
+/** Air units so stock + placed + air run out on `day` (air end-handle drag). Smallest u that reaches it. */
+export function unitsForAirEndDay(
+  inp: PlanInput, units: number[], day: number, cum: Float64Array, moves: Record<string, number>,
+): number {
+  const d = Math.max(0, Math.min(PP_MAXH, Math.round(day)));
+  if (d <= inp.airLT) return 0;                       // before the air can even arrive: no air
+  const reach = (u: number) => planShipments(inp, units, cum, u, moves).air?.tEnd ?? 0;
+  let lo = 0, hi = Math.max(1000, Math.ceil(cum[PP_MAXH]));
+  if (reach(hi) < d) return hi;
+  for (let i = 0; i < 40 && hi - lo > 1; i++) { const mid = (lo + hi) >> 1; if (reach(mid) >= d) hi = mid; else lo = mid; }
+  return hi;
 }
 
 /** "03 Nov"-style label for a day offset from the anchor date. */
 export function dayLabel(anchor: Date, day: number): string {
   return new Date(anchor.getTime() + day * 86400000).toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
-}
-
-/** Air units so the air layer runs out on `day` (used when dragging the Air bar's end handle). */
-export function unitsForAirEndDay(plan: Plan, inp: PlanInput, day: number): number {
-  const d = Math.max(0, Math.min(PP_MAXH, Math.round(day)));
-  const placedBy = plan.placed && plan.placed.arrival <= d ? plan.placed.units : 0;
-  return Math.max(0, Math.round(plan.cum[d] - inp.stock0 - placedBy));
 }
