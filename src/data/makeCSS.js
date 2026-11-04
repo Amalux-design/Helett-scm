@@ -384,9 +384,12 @@ input[type=checkbox]:not(:disabled):hover{border-color:${t.text3}}
   .dash-row>div:nth-child(3){grid-column:2;grid-row:1}
 }
 
-/* tight data tables: columns hug their content, SKU name (2nd column) absorbs the leftover width */
-table.tight th,table.tight td{width:1%;white-space:nowrap;padding-left:7px;padding-right:7px}
-table.tight th:nth-child(2),table.tight td:nth-child(2){width:auto;min-width:190px}
-table.tight td:nth-child(2) .tn,table.tight td:nth-child(2) .ta{display:block;max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* data tables: SKU name gets a proportional column (ellipsis only when it truly overflows), the rest share the slack */
+table.tight th,table.tight td{white-space:nowrap;padding-left:8px;padding-right:8px}
+table.tight th:nth-child(2){width:27%;min-width:176px}
+table.tight td:nth-child(2){width:27%;min-width:176px;max-width:0}
+table.tight td:nth-child(2) .tn,table.tight td:nth-child(2) .ta{display:block;max-width:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 table.tight th:nth-child(1),table.tight td:nth-child(1){width:28px;padding-left:12px;padding-right:4px}
+/* toolbar buttons sit a touch shorter than the 36px inputs so the solid Export button doesn't read heavier */
+.srow .btn{height:32px}
 `;}
