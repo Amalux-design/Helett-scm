@@ -6,7 +6,7 @@ import {
 
 /* Purchase Plan — horizontal candle chart.
    Row 1 is the current (enabled) stock stretched over the days it lasts; every purchase
-   order below it lands where the layer above enters its safety stretch (hatched).
+   order below it arrives where the layer above enters its safety stretch (hatched).
    Click a bar to type its units, drag a PO's end handle to resize it.
    Inputs come from SKU Detail; all maths lives in planLogic.ts. */
 
@@ -168,12 +168,12 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
   const coveredTo = Math.max(sr.tZero, pl?.tZero ?? 0, ...plan.bars.filter(b => b.units > 0).map(b => b.tZero), plan.air?.tEnd ?? 0);
   const facts: { k: string; v: string; bad?: boolean }[] = [
     { k: "Stock lasts", v: `${stockDays}d · ${dayLabel(anchor, sr.tZero)}` },
-    ...(pl ? [{ k: "Placed PO", v: `lands ${dayLabel(anchor, pl.arrival)} · lasts to ${dayLabel(anchor, pl.tZero)}` }] : []),
-    ...(plan.air ? [{ k: "Air", v: `${fmt(plan.air.u)} u · lands ${dayLabel(anchor, plan.air.arrive)} · covers ${Math.max(0, plan.air.tEnd - plan.air.arrive)}d` }] : []),
-    ...(nextPo && nextPo.units > 0 ? [{ k: "Next order", v: nextPo.late > 0 ? `today (${nextPo.late}d late) · lands ${dayLabel(anchor, nextPo.arrival)}` : `by ${dayLabel(anchor, nextPo.order)} · lands ${dayLabel(anchor, nextPo.arrival)}`, bad: nextPo.late > 0 }]
-      : nextPo ? [{ k: "Next order", v: `by ${dayLabel(anchor, nextPo.order)} (lands ${dayLabel(anchor, nextPo.arrival)})` }] : []),
+    ...(pl ? [{ k: "Placed PO", v: `arrives ${dayLabel(anchor, pl.arrival)} · lasts to ${dayLabel(anchor, pl.tZero)}` }] : []),
+    ...(plan.air ? [{ k: "Air", v: `${fmt(plan.air.u)} u · arrives ${dayLabel(anchor, plan.air.arrive)} · lasts to ${dayLabel(anchor, plan.air.tEnd)}` }] : []),
+    ...(nextPo && nextPo.units > 0 ? [{ k: "Next order", v: nextPo.late > 0 ? `today (${nextPo.late}d late) · arrives ${dayLabel(anchor, nextPo.arrival)}` : `by ${dayLabel(anchor, nextPo.order)} · arrives ${dayLabel(anchor, nextPo.arrival)}`, bad: nextPo.late > 0 }]
+      : nextPo ? [{ k: "Next order", v: `by ${dayLabel(anchor, nextPo.order)} (arrives ${dayLabel(anchor, nextPo.arrival)})` }] : []),
     { k: "Covered to", v: `${dayLabel(anchor, coveredTo)} (${coveredTo}d)` },
-    ...(gap > 0 ? [{ k: "No stock", v: `${gap}d before the first landing`, bad: true }] : []),
+    ...(gap > 0 ? [{ k: "No stock", v: `${gap}d before the first delivery`, bad: true }] : []),
   ];
 
   // Tips shown under the ⓘ button, grouped
@@ -182,13 +182,13 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
       `Stock ${fmt(stock0)} u lasts ${stockDays} days${follow && trendPct !== 0 ? `, with the ${trendPct >= 0 ? "+" : ""}${trendPct}% trend (${flatDays}d at flat demand, the Days of Inventory basis)` : ""}.`,
       `Demand ${d0.toFixed(1)}/day · Sea ${LT}d${hasAir ? ` · Air ${airLT}d` : ""} · Safety ${S}d.`,
       ...(pl ? [`${fmt(pl.units)} u PO already placed, counted right after the stock.`] : []),
-      ...(gap > 0 ? [`${gap} days with no stock before the first landing.`] : []),
+      ...(gap > 0 ? [`${gap} days with no stock before the first delivery arrives.`] : []),
     ] },
     { h: "Reading the bars", items: [
       `Solid part is cover you can sell. The hatched end is the last ${S} days, kept as safety.`,
       "The bold number after each bar is its total days of cover, safety included.",
-      "Each order lands where the bar above it enters safety. The thin line before it is transit, with the order date above.",
-      "The Air bar bridges the gap until sea lands.",
+      "Each order arrives just as the bar above it enters its safety stretch. The thin line before a bar is shipping time, with the order date above it.",
+      "The Air bar is stock flown in to cover the gap until a sea order arrives.",
     ] },
     { h: "Editing", items: [
       "Click a bar to type its units.",
@@ -271,7 +271,7 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
             <input type="number" min={1} max={8} value={n} onChange={e => onN(e.target.value)} style={fld(mode === "manual" || nOv !== null, 60)} />
           </label>
           {hasAir && (
-            <label style={lbl} title="Units flown in to bridge the gap until sea lands. Type 0 for no air.">
+            <label style={lbl} title="Units flown in to cover the gap until a sea order arrives. Type 0 for no air.">
               Air units
               <input type="number" min={0} value={airOv === null ? (plan.air?.u ?? 0) : airOv} onChange={e => onAir(e.target.value)} style={fld(airOv !== null)} />
             </label>
@@ -329,7 +329,7 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
                     {sr.tZero > 0 && endTag(x(sr.tZero), cy, sr.tZero, 8)}
                     {gap > 0 && <>
                       <line x1={x(sr.gapStart)} x2={x(sr.gapEnd)} y1={cy} y2={cy} stroke={t.red} strokeWidth="2" strokeDasharray="4 3" />
-                      <rect x={x(sr.gapStart)} y={cy - 10} width={Math.max(2, x(sr.gapEnd) - x(sr.gapStart))} height="20" fill="transparent" {...tipOn("No stock", [`${gap} days with nothing on the shelf`, `${dayLabel(anchor, sr.gapStart)} → ${dayLabel(anchor, sr.gapEnd)}`])} />
+                      <rect x={x(sr.gapStart)} y={cy - 10} width={Math.max(2, x(sr.gapEnd) - x(sr.gapStart))} height="20" fill="transparent" {...tipOn("No stock", [`${gap} days with nothing on the shelf`, `From ${dayLabel(anchor, sr.gapStart)} until the first delivery arrives on ${dayLabel(anchor, sr.gapEnd)}`])} />
                       <text x={x(sr.gapStart) + 6} y={cy - 8} fontSize="10.5" fontWeight="600" fill={t.red} fontFamily="inherit" pointerEvents="none">no stock for {gap}d</text>
                     </>}
                   </g>
@@ -341,9 +341,10 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
                 const cy = axisH + rowH + rowH / 2;
                 const bodyW = x(pl.tSafe) - x(pl.arrival), tailW = x(pl.tZero) - x(pl.tSafe);
                 const tp = tipOn(`PO placed · ${fmt(pl.units)} units`, [
-                  "Already ordered (Purchased Units + open POs, Include PO is on)",
-                  `Counted from ${dayLabel(anchor, pl.arrival)} — where current stock enters safety`,
-                  `${Math.max(0, pl.tZero - pl.arrival)}d of cover, safety stretch from ${dayLabel(anchor, pl.tSafe)}`,
+                  "Already ordered: Purchased Units plus open POs (Include PO is on)",
+                  `Counted from ${dayLabel(anchor, pl.arrival)}, when your current stock reaches its safety stretch`,
+                  `Covers ${Math.max(0, pl.tZero - pl.arrival)} days of demand, until ${dayLabel(anchor, pl.tZero)}`,
+                  `The last ${S} days (from ${dayLabel(anchor, pl.tSafe)}) are safety stock`,
                 ]);
                 return (
                   <g>
@@ -358,11 +359,13 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
               {/* Air bridge */}
               {plan.air && (() => {
                 const cy = axisH + (1 + (pl ? 1 : 0)) * rowH + rowH / 2, a = plan.air;
+                const seaGap = a.until - a.tEnd;
                 const tp = tipOn("Air bridge", [
-                  `${fmt(a.u)} units${airOv !== null ? " (set by you)" : ""}`,
-                  `Order today, lands ${dayLabel(anchor, a.arrive)} (day ${a.arrive})`,
-                  `Covers ${Math.max(0, a.tEnd - a.arrive)}d, runs out ${dayLabel(anchor, a.tEnd)} (sea lands ${dayLabel(anchor, a.until)})`,
-                  "Click to edit units · drag the white edge to extend",
+                  `${fmt(a.u)} units flown in${airOv !== null ? " (set by you)" : ""}`,
+                  `Order today, they arrive ${dayLabel(anchor, a.arrive)} (day ${a.arrive})`,
+                  `From then, your stock + this air last another ${Math.max(0, a.tEnd - a.arrive)} days, until ${dayLabel(anchor, a.tEnd)}`,
+                  `A sea order placed today arrives ${dayLabel(anchor, a.until)} (day ${a.until}), ${seaGap > 0 ? `${seaGap} day${seaGap === 1 ? "" : "s"} after they run out, so you would be without stock` : seaGap === 0 ? "the day they run out, so there is no gap" : `${-seaGap} day${seaGap === -1 ? "" : "s"} before they run out, so there is no gap`}`,
+                  "Click to edit the units · drag the white edge to cover more days",
                 ]);
                 return (
                   <g>
@@ -384,10 +387,13 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
                 const bodyW = x(b.tSafe) - x(b.arrival), tailW = x(b.tZero) - x(b.tSafe);
                 const cover = Math.max(0, b.tZero - b.arrival);
                 const tp = tipOn(`PO ${b.k + 1} · ${fmt(b.units)} units`, [
-                  `Order ${dayLabel(anchor, b.order)} (day ${b.order})${b.late > 0 ? ` — ${b.late}d late` : ""}`,
-                  `Lands ${dayLabel(anchor, b.arrival)} (day ${b.arrival})`,
-                  `${cover}d of cover, safety stretch from ${dayLabel(anchor, b.tSafe)}`,
-                  "Click to edit units · drag the handle to resize",
+                  b.late > 0
+                    ? `Order today. That is ${b.late} days later than ideal${plan.air ? ", so the air bridge covers the gap" : ""}`
+                    : `Place the order on ${dayLabel(anchor, b.order)} (day ${b.order})`,
+                  `It arrives ${dayLabel(anchor, b.arrival)} (day ${b.arrival}), ${Math.max(0, b.arrival - b.order)} days after ordering`,
+                  `Covers ${cover} days of demand, until ${dayLabel(anchor, b.tZero)}`,
+                  `The last ${S} days (from ${dayLabel(anchor, b.tSafe)}) are your safety stock`,
+                  "Click to edit the units · drag the white edge to cover more days",
                 ]);
                 return (
                   <g key={b.k}>
@@ -423,9 +429,9 @@ export default function PurchasePlanChart({ stock0, poUnits = 0, d0, r, LT, airL
 
           {tip && !edit && (
             <div role="tooltip" style={{
-              position: "absolute", left: Math.max(4, Math.min(tip.x + 14, wrapW - 270)), zIndex: 20, pointerEvents: "none",
+              position: "absolute", left: Math.max(4, Math.min(tip.x + 14, wrapW - 330)), zIndex: 20, pointerEvents: "none",
               ...(tip.y > wrapH * 0.5 ? { top: tip.y - 14, transform: "translateY(-100%)" } : { top: tip.y + 16 }),
-              maxWidth: 260, padding: "8px 10px", borderRadius: 8, background: t.tooltipBg, border: `1px solid ${t.border2}`,
+              maxWidth: 320, padding: "8px 10px", borderRadius: 8, background: t.tooltipBg, border: `1px solid ${t.border2}`,
               boxShadow: "0 6px 20px rgba(0,0,0,.28)", color: t.text, fontSize: 12, lineHeight: 1.4,
             }}>
               <div style={{ fontWeight: 700, marginBottom: 3 }}>{tip.head}</div>
