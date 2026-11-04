@@ -73,6 +73,11 @@ function fmtDate(d) {
   if (!d) return "—";
   return d.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"});
 }
+// "14 Dec 26" — saves width in tables
+function fmtDateShort(d) {
+  if (!d) return "—";
+  return d.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"2-digit"});
+}
 function extractSheetId(url) {
   const m = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
   return m ? m[1] : null;
@@ -641,7 +646,7 @@ function computeAll(inv, salesByAsinDay, fcData, settings, anchorDate, regionalS
       _rawFbaAvailable: d.fbaAvailable||0,
       _seaLT: ltData?.[asin]?.sea?.transitDays ?? null,
       _airLT: ltData?.[asin]?.air?.transitDays ?? null,
-      _poUnits: manualPoQty,
+      _poUnits: poForecastQty, // manual Purchased Units + open POs, only when Include PO is on (matches SKU detail)
       _poForecastQty: poForecastQty,
     };
     const planning = calcPlanning(invWithAnchor, effVel, settings);
@@ -1323,7 +1328,7 @@ function Dashboard({data,settings,setSettings,onSku,t,purchRows}){
     return base.sort((a,b)=>{
       if(col==="sku") return m*(a.finalName.localeCompare(b.finalName));
       if(col==="doi") return m*((isFinite(a.planning.doi)?a.planning.doi:9999)-(isFinite(b.planning.doi)?b.planning.doi:9999));
-      if(col==="stock") return m*(a.currentStock-b.currentStock);
+      if(col==="stock") return m*(stockOf(a)-stockOf(b));
       if(col==="demand") return m*(a.velocity.demand-b.velocity.demand);
       return m*(b.planning.displayScore-a.planning.displayScore);
     }).slice(0,10);
@@ -1518,7 +1523,7 @@ function Dashboard({data,settings,setSettings,onSku,t,purchRows}){
         <div className="ch">Most at risk</div>
         <div style={{...sub12,marginTop:-6,marginBottom:6}}>Lowest days of inventory · click to open</div>
         {atRisk.map(d=>(
-          <DashRow key={d.asin} label={d.finalName} sub={`Stockout ${fmtDate(d.planning.stockoutDate)}`}
+          <DashRow key={d.asin} label={d.finalName} sub={`Stockout ${fmtDateShort(d.planning.stockoutDate)}`}
             value={`${fmt(d.planning.doi,1)}d`} frac={Math.min(1,d.planning.doi/30)}
             color={d.planning.priority==="critical"?t.red:d.planning.priority==="high"?t.orange:t.green} onClick={()=>onSku(d.asin)} t={t}/>
         ))}
@@ -1551,10 +1556,10 @@ function Dashboard({data,settings,setSettings,onSku,t,purchRows}){
             <td><div className="tn">{d.finalName}</div><div className="ta">{d.sellerSku}</div></td>
             <td className="ta">{d.asin}</td>
             <td><DOI doi={d.planning.doi} t={t}/></td>
-            <td>{fmt(d.currentStock)}</td>
+            <td>{fmt(stockOf(d))}</td>
             <td>{fmt(d.velocity.demand,2)}</td>
             <td style={{color:t.accent,fontWeight:700}}>{fmt(d.velocity.raw7)}</td>
-            <td style={{color:t.red}}>{fmtDate(d.planning.stockoutDate)}</td>
+            <td style={{color:t.red}}>{fmtDateShort(d.planning.stockoutDate)}</td>
             <td><PBadge action={d.planning.action} priority={d.planning.priority} purchasePct={d.planning.purchasePct||0} replenishPct={d.planning.replenishPct||0} t={t}/></td>
           </tr>
         ))}</tbody>
@@ -1619,6 +1624,13 @@ function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,s
     );
   }
 
+  // Include PO on → DOI / stockout fold in the units already ordered
+  const poOn=settings.inclPO===true;
+  const poQtyOf=d=>poOn?(d.planning.poStockQty||0):0;
+  const doiOf=d=>poQtyOf(d)>0?d.planning.doiWithPO:d.planning.doi;
+  const soOf=d=>poQtyOf(d)>0?d.planning.stockoutDateWithPO:d.planning.stockoutDate;
+  const stockOf=d=>d.effectiveStock??d.currentStock;
+
   const lisMap=useMemo(()=>{
     const m={};
     Object.values(data).forEach(d=>{ m[d.asin]=calcLIS(d); });
@@ -1633,18 +1645,19 @@ function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,s
     const m=dir==="asc"?1:-1;
     return base.sort((a,b)=>{
       if(col==="sku")    return m*a.finalName.localeCompare(b.finalName);
-      if(col==="stock")  return m*(a.currentStock-b.currentStock);
+      if(col==="stock")  return m*(stockOf(a)-stockOf(b));
       if(col==="fba")    return m*(a.fbaAvailable-b.fbaAvailable);
       if(col==="fc")     return m*(a.fcSellable-b.fcSellable);
       if(col==="demand") return m*(a.velocity.demand-b.velocity.demand);
-      if(col==="doi")    return m*((isFinite(a.planning.doi)?a.planning.doi:99999)-(isFinite(b.planning.doi)?b.planning.doi:99999));
+      if(col==="doi")    return m*((isFinite(doiOf(a))?doiOf(a):99999)-(isFinite(doiOf(b))?doiOf(b):99999));
+      if(col==="po")     return m*(poQtyOf(a)-poQtyOf(b));
       if(col==="buy")    return m*(a.planning.suggestedPurchase-b.planning.suggestedPurchase);
       if(col==="replen") return m*(a.planning.replenishQty-b.planning.replenishQty);
       if(col==="lis")    return m*((lisMap[a.asin]?.pct??-1)-(lisMap[b.asin]?.pct??-1));
       // default: priority score
       return m*(b.planning.displayScore-a.planning.displayScore);
     });
-  },[data,q,sort,fil,lisMap]);
+  },[data,q,sort,fil,lisMap,poOn]);
 
   // Export what's currently on screen (search + filter applied) as CSV.
   // Stock/FBA/FC/FC Transfer/Inbound columns are zeroed to "-" when their
@@ -1656,7 +1669,7 @@ function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,s
     const inclFC = settings.inclFC !== false;
     const inclInbound = settings.inclInbound !== false;
     const inclTransfer = settings.inclTransfer !== false;
-    const headers = ["SKU Name","Seller SKU","ASIN","Trend","W.Demand/Day","Stock","FBA","FC","FC Transfer","Inbound","DOI (days)","Stockout Date","Buy Qty","Replenish Qty","LIS %","Action","Priority"];
+    const headers = ["SKU Name","Seller SKU","ASIN","Trend","W.Demand/Day","Stock","FBA","FC","FC Transfer","Inbound",...(poOn?["PO units"]:[]),poOn?"DOI incl. PO (days)":"DOI (days)","Stockout Date","Buy Qty","Replenish Qty","LIS %","Action","Priority"];
     const rows = skus.map(d=>{
       const stock = (inclFBA?d.fbaAvailable||0:0) + (inclTransfer?d.fcTransfer||0:0) + (inclFC?d.fcSellable||0:0) + (inclInbound?(d.inbound||0)+(d.processing||0)*0.8:0);
       return [
@@ -1668,8 +1681,9 @@ function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,s
         inclFC ? fmt(d.fcSellable) : "-",
         inclTransfer ? fmt(d.fcTransfer) : "-",
         inclInbound ? fmt(d.inbound) : "-",
-        isFinite(d.planning.doi) ? fmt(d.planning.doi,1) : "∞",
-        fmtDate(d.planning.stockoutDate),
+        ...(poOn?[poQtyOf(d)>0?fmt(poQtyOf(d)):"-"]:[]),
+        isFinite(doiOf(d)) ? fmt(doiOf(d),1) : "∞",
+        fmtDate(soOf(d)),
         d.planning.suggestedPurchase>0 ? fmt(d.planning.suggestedPurchase) : "-",
         d.planning.replenishQty>0 ? fmt(d.planning.replenishQty) : "-",
         lisMap[d.asin] ? Math.round(lisMap[d.asin].pct) : "-",
@@ -1718,8 +1732,9 @@ function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,s
           <SortTh col="fba" label="FBA"/>
           <SortTh col="fc" label="FC"/>
           <th>Inbound</th>
-          <SortTh col="doi" label="DOI"/>
-          <th>Stockout</th>
+          {poOn&&<SortTh col="po" label="PO"/>}
+          <SortTh col="doi" label={poOn?"DOI + PO":"DOI"}/>
+          <th>{poOn?"Stockout + PO":"Stockout"}</th>
           <SortTh col="buy" label="Buy Qty"/>
           <SortTh col="replen" label="Replenish"/>
           <SortTh col="lis" label="LIS"/>
@@ -1739,10 +1754,11 @@ function AllSKUs({data,settings,setSettings,onSku,t,setPoUnits,setExtraInbound,s
             <td style={{textAlign:"left"}} className="ta">{d.asin}</td>
             <td style={{textAlign:"left"}}><TrendLabel trend={calcTrend(d.velocity.avg7,d.velocity.avg30)} t={t}/></td>
             <td style={{fontWeight:700,color:hasPriorityDemand?t.accent:t.text}} title={hasPriorityDemand?`Priority Demand override active (weighted avg is ${fmt(d.velocity.demand,2)})`:undefined}>{fmt(displayDemand,2)}</td>
-            <td>{fmt(d.currentStock)}</td><td>{fmt(d.fbaAvailable)}</td><td>{fmt(d.fcSellable)}</td>
+            <td>{fmt(stockOf(d))}</td><td>{fmt(d.fbaAvailable)}</td><td>{fmt(d.fcSellable)}</td>
             <td style={{color:extraInboundQty>0?t.accent:undefined,fontWeight:extraInboundQty>0?700:undefined}} title={extraInboundQty>0?`Includes +${fmt(extraInboundQty)} Add Inbound (file value is ${fmt(d.inbound)})`:undefined}>{fmt(displayInbound)}</td>
-            <td><DOI doi={d.planning.doi} t={t}/></td>
-            <td style={{color:d.planning.doi<30?t.red:t.text3}}>{fmtDate(d.planning.stockoutDate)}</td>
+            {poOn&&<td style={{color:poQtyOf(d)>0?t.text:t.text3,fontWeight:poQtyOf(d)>0?700:undefined}} title={poQtyOf(d)>0?"Units already ordered (Purchased Units + open POs), folded into DOI and stockout":"No PO units for this SKU"}>{poQtyOf(d)>0?fmt(poQtyOf(d)):"—"}</td>}
+            <td title={poQtyOf(d)>0?`Includes ${fmt(poQtyOf(d))} PO units`:undefined}><DOI doi={doiOf(d)} t={t}/></td>
+            <td style={{color:doiOf(d)<30?t.red:t.text3,whiteSpace:"nowrap"}} title={poQtyOf(d)>0?`Includes ${fmt(poQtyOf(d))} PO units`:undefined}>{fmtDateShort(soOf(d))}</td>
             <td style={{color:t.accent,fontWeight:700}}>{d.planning.suggestedPurchase>0?fmt(d.planning.suggestedPurchase):"—"}</td>
             <td style={{color:t.yellow,fontWeight:700}}>{d.planning.replenishQty>0?fmt(d.planning.replenishQty):"—"}</td>
             {(()=>{
@@ -3015,8 +3031,9 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
   // Priority Demand override, which could make this section (and Shipment Plan below)
   // show "stock OK" while the KPI tiles above correctly showed real urgency.
   const demand = sku.effectiveDemand;
+  const stockEff = sku.effectiveStock ?? sku.currentStock; // honours the Include FBA/FC/Transfer/Inbound toggles
   const localReorderStock = Math.round(demand * (effectiveLT + settings.safetyDays));
-  const localDoi = demand > 0 ? (sku.currentStock / demand) : Infinity;
+  const localDoi = demand > 0 ? (stockEff / demand) : Infinity;
   const localGap = Math.max(0, (effectiveLT + settings.safetyDays) - localDoi);
   const localRequired = demand * (effectiveLT + settings.safetyDays);
   const localSuggestedPurchaseRaw = Math.round(Math.max(0, localGap) * demand);
@@ -3060,7 +3077,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
   // both the "will I stock out before sea arrives" check and the sea target need to
   // treat incoming PO the same way, otherwise air can fire a "bridge the gap" order
   // that's already covered by a PO the sea math already counted as available.
-  const shipAvailableStock = sku.currentStock + totalPoDeduction;
+  const shipAvailableStock = stockEff + totalPoDeduction;
   const shipDoh = demand > 0 ? shipAvailableStock / demand : Infinity;
   let shipOrderAir = 0;
   if (hasAir && demand > 0) {
@@ -3082,8 +3099,8 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
     ? new Date(shipStockoutDate.getTime() - effectiveLT*86400000) : null;
 
   let shipStatusLabel, shipStatusTier;
-  if (demand === 0 && sku.currentStock === 0) { shipStatusLabel = "No sales data"; shipStatusTier = "none"; }
-  else if (sku.currentStock === 0 && demand > 0) { shipStatusLabel = "Stocked out — order air"; shipStatusTier = "critical"; }
+  if (demand === 0 && stockEff === 0) { shipStatusLabel = "No sales data"; shipStatusTier = "none"; }
+  else if (stockEff === 0 && demand > 0) { shipStatusLabel = "Stocked out — order air"; shipStatusTier = "critical"; }
   else if (hasAir && isFinite(shipDoh) && shipDoh < effectiveAirLT) { shipStatusLabel = "Order air now"; shipStatusTier = "critical"; }
   else if (isFinite(shipDoh) && shipDoh < effectiveLT) { shipStatusLabel = "Sea + air gap order"; shipStatusTier = "urgent"; }
   else if (isFinite(shipDoh) && shipDoh < effectiveLT * 1.3) { shipStatusLabel = "Place sea order soon"; shipStatusTier = "soon"; }
@@ -3803,7 +3820,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
           <CartesianGrid strokeDasharray="3 3" stroke={t.border}/>
           <XAxis dataKey="date" tick={{fill:t.text3,fontSize:11}} interval={Math.ceil(forecast.length/10)}/>
           <YAxis tick={{fill:t.text3,fontSize:10}}
-            domain={[0, Math.ceil(Math.max(sku.currentStock, reorderStock) * 1.12)]}/>
+            domain={[0, Math.ceil(Math.max(stockEff, reorderStock) * 1.12)]}/>
           <Tooltip contentStyle={{background:t.tooltipBg,border:`1px solid ${t.border}`,borderRadius:8,fontSize:12,color:t.text}}
             itemStyle={{color:t.text2}} labelStyle={{color:t.text,fontWeight:600}}/>
           {/* Reorder level horizontal line — always visible since Y-axis scales to include it */}
@@ -3822,7 +3839,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
       {soi>0&&<div style={{marginTop:6,fontSize:9,color:t.red,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
         ⚠ Projected stockout in ~{soi} days ({fmtDate(new Date((sku._anchor||getToday()).getTime()+soi*86400000))})
       </div>}
-      {reorderStock>0&&sku.currentStock<=reorderStock&&<div style={{marginTop:4,fontSize:9,color:t.yellow,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
+      {reorderStock>0&&stockEff<=reorderStock&&<div style={{marginTop:4,fontSize:9,color:t.yellow,fontFamily:"'Instrument Sans',system-ui,sans-serif"}}>
         ⚡ Current stock is at or below the reorder level — purchase recommended
       </div>}
     </div>
