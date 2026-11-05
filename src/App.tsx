@@ -1301,6 +1301,8 @@ function Dashboard({data,settings,setSettings,onSku,t,purchRows}){
   const a30=skus.reduce((s,d)=>s+(d.velocity.avg30||0),0);
   const demandDelta=a30>0?(a7/a30-1)*100:0;
   const netCover=totalDemand>0?totalStock/totalDemand:Infinity;
+  const totalTransfer=skus.reduce((s,d)=>s+(d.fcTransfer||0),0);                                              // FBA → FC transfers
+  const totalInTransit=skus.reduce((s,d)=>s+(d.fcPlanning?.fcs||[]).reduce((q:number,fc:any)=>q+(fc.inTransit||0),0),0); // on the way to FCs
 
   // Open POs: units + count, grouped by status
   const poStats=useMemo(()=>{
@@ -1417,6 +1419,7 @@ function Dashboard({data,settings,setSettings,onSku,t,purchRows}){
   const kpis=[
     {l:"Daily demand",v:fmt(totalDemand,0),s:a30>0?`${demandDelta>=0?"↗":"↘"} ${Math.abs(demandDelta).toFixed(0)}% last 7d vs 30d`:"units per day",col:t.text},
     {l:"Units in stock",v:fmt(totalStock),s:"FBA + FC + inbound, per toggles",col:t.text},
+    {l:"In transit",v:fmt(totalTransfer+totalInTransit),s:`${fmt(totalTransfer)} FC transfer · ${fmt(totalInTransit)} to FCs`,col:t.text},
     {l:"Network cover",v:isFinite(netCover)?`${fmt(netCover,0)}d`:"—",s:"stock at current demand",col:!isFinite(netCover)?t.text:netCover<7?t.red:netCover<21?t.yellow:t.text},
     {l:"Need action",v:crit+high,s:`${crit} critical · ${high} high`,col:crit>0?t.red:high>0?t.yellow:t.text},
     {l:"Open POs",v:poStats.count,s:`${fmt(poStats.units)} units on the way`,col:t.text},
@@ -1426,7 +1429,7 @@ function Dashboard({data,settings,setSettings,onSku,t,purchRows}){
     <SBar settings={settings} setSettings={setSettings} t={t}/>
 
     {/* KPI strip */}
-    <div className="kg kg5" style={{marginBottom:12}}>
+    <div className="kg kg6" style={{marginBottom:12}}>
       {kpis.map(k=>(
         <div key={k.l} className="kc">
           <div className="kl">{k.l}</div>
@@ -3226,8 +3229,8 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
       transform:bkVisible?"translateY(0)":"translateY(-140%)",
       opacity:bkVisible?1:0,
       transition:"transform .22s ease,opacity .22s ease",
-      boxShadow:"0 4px 12px rgba(0,0,0,.18)",
-    }}>← Back</div>
+      boxShadow:"0 8px 20px -8px rgba(0,0,0,.4)",
+    }}><span className="bk-ar" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 3 5 8l5 5"/></svg></span>Back</div>
     <SBar settings={settings} setSettings={setSettings} t={t}/>
 
     {/* Per-SKU Lead Time */}
@@ -3307,7 +3310,7 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
         ))}
       </div>
       <div className="card">
-        <div className="ch">Sales Velocity (Net — Excl. Cancelled & Returns)</div>
+        <div className="ch">Sales Velocity<span className="ii" tabIndex={0}><i>i</i><span role="tooltip">Net sales: cancelled orders and returns are excluded.</span></span></div>
         {[["7-Day Total",fmt(vel.raw7)+" units"],
           ["7-Day Avg",fmt(vel.avg7,2)+" u/day"],
           ["14-Day Total",fmt(vel.raw14)+" units"],
@@ -3725,13 +3728,12 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
               {r.pctOfDemand.toFixed(1)}% of this SKU's demand · {fmt(r.dailyDemand,2)} units/day
             </div>
             <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8}}>
-              {r.fcs.map(fc=>(
-                <span key={fc} style={{
-                  fontSize:9,fontWeight:700,padding:"1px 6px",borderRadius:4,
-                  background:t.accentBg,color:t.accent,border:`1px solid ${t.accentBdr}`,
-                  fontFamily:"'Instrument Sans',system-ui,sans-serif",
-                }}>{fc}</span>
-              ))}
+              {r.fcs.map(fc=>{
+                const fcStk=((fcPlanning?.fcs||[]).find((x:any)=>x.fc===fc)?.stock)||0, has=fcStk>0;
+                return(
+                  <span key={fc} className="badge" title={has?`${fmt(fcStk)} units in stock`:"No stock here"} style={{["--bc" as any]:has?t.green:t.text3,opacity:has?1:.6,fontSize:12,height:24,padding:"0 10px"}}>{fc}</span>
+                );
+              })}
             </div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8}}>
               <div>
