@@ -124,6 +124,9 @@ button,input,select,textarea{font-family:${SANS}}
 .fc-rec-list{padding:10px 14px;display:flex;flex-direction:column;gap:6px}
 .fc-rec-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:${t.surface};border-radius:8px;border:1px solid ${t.border};font-size:14px}
 .sbar{padding:16px 20px;margin-bottom:16px;overflow:hidden;width:100%;position:sticky;top:0;z-index:10}
+.skuhead{position:sticky;top:0;z-index:20;background:${t.bg};margin:-16px -32px 10px;padding:8px 32px 10px}
+.skuhead .bk{margin-bottom:10px}
+.skuhead .sbar{position:static;margin-bottom:0}
 .sg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;min-width:0;width:100%}
 .slg{min-width:0;padding:0 24px;border-right:1px solid ${t.border}}
 .slg:first-child{padding-left:0}
@@ -290,6 +293,8 @@ tr.cr{cursor:pointer}
 }
 @media(max-width:600px){
   .sbar{padding:6px 12px}
+  .skuhead{margin:-8px -16px 8px;padding:6px 16px 8px;max-height:80vh;overflow-y:auto}
+  .skuhead .bk{margin-bottom:6px}
   .sbar.m-open{padding:6px 16px 16px;position:static}
   .sbar-toggle{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;height:36px;border:0;background:transparent;color:${t.text2};font-size:13px;font-weight:500;cursor:pointer;border-radius:8px}
   .sbar-toggle:active{background:${t.surface2}}

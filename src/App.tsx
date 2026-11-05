@@ -2941,10 +2941,7 @@ function JumpNav({sections, stickyHeaderRef, t}){
     // sibling. Measuring each element's own height (not a wrapping div) keeps
     // both genuinely sticky — a shrink-wrapped parent would cap how far they
     // can stay pinned to just its own (short) height.
-    const bkEl = stickyHeaderRef.current;
-    const bkH = bkEl?.getBoundingClientRect().height || 0;
-    const sbarH = bkEl?.nextElementSibling?.getBoundingClientRect().height || 0;
-    const headerH = bkH + sbarH + 14;
+    const headerH = (stickyHeaderRef.current?.getBoundingClientRect().height || 0) + 6;
     const delta = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top - headerH;
     scroller.scrollTo({top: Math.max(0, scroller.scrollTop + delta), behavior:"smooth"});
     setOpen(false);
@@ -3010,20 +3007,6 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
   const forecast = poIncluded ? (forecastWithPO||baseForecast) : baseForecast;
   const displayDoi = poIncluded ? pl.doiWithPO : pl.doi;
   const displayStockoutDate = poIncluded ? pl.stockoutDateWithPO : pl.stockoutDate;
-
-  const [bkVisible,setBkVisible]=useState(true);
-  useEffect(()=>{
-    const scroller=document.querySelector(".content");
-    if(!scroller)return;
-    let lastY=scroller.scrollTop;
-    const onScroll=()=>{
-      const y=scroller.scrollTop;
-      setBkVisible(y<=lastY||y<40);
-      lastY=y;
-    };
-    scroller.addEventListener("scroll",onScroll,{passive:true});
-    return()=>scroller.removeEventListener("scroll",onScroll);
-  },[]);
 
   // Per-SKU lead time from file; Additional Lead Time slider = extra buffer on top
   const seaLTBase = sku.skuSeaLT ?? null;
@@ -3224,14 +3207,10 @@ function SKUDetail({sku, onBack, settings, setSettings, t, poUnits, setPoUnits, 
 
   return(<div>
     <JumpNav sections={JUMP_SECTIONS} stickyHeaderRef={stickyHeaderRef} t={t}/>
-    <div className="bk" ref={stickyHeaderRef} onClick={onBack} style={{
-      position:"sticky",top:8,zIndex:20,
-      transform:bkVisible?"translateY(0)":"translateY(-140%)",
-      opacity:bkVisible?1:0,
-      transition:"transform .22s ease,opacity .22s ease",
-      boxShadow:"0 8px 20px -8px rgba(0,0,0,.4)",
-    }}><span className="bk-ar" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 3 5 8l5 5"/></svg></span>Back</div>
+    <div className="skuhead" ref={stickyHeaderRef}>
+    <div className="bk" onClick={onBack}><span className="bk-ar" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 3 5 8l5 5"/></svg></span>Back</div>
     <SBar settings={settings} setSettings={setSettings} t={t}/>
+    </div>
 
     {/* Per-SKU Lead Time */}
     <div className="card" style={{marginBottom:10,padding:"10px 14px"}}>
