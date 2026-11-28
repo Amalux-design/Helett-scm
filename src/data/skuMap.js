@@ -148,4 +148,9 @@ export const SKU_MAP = {
   "B0HKZKM9QD":{"sellerSku":"H01 Labelholder Black","finalName":"H01 Labelholder Black"},
   "B0HH3NH8G5":{"sellerSku":"Helett Travel-Fi Neo","finalName":"Helett Travel-Fi Neo"},
   "B0HFZRWWG3":{"sellerSku":"Helett H80i Neo Reciept Printer FBA","finalName":"H80i BillQuick Neo Receipt Printer"},
+  "B0HSS8PTVJ":{"sellerSku":"HT-4X6-TL4-P2","finalName":"4x6 Label (400 Label, Pack of 2)"},
+  "B0HSXKN8F3":{"sellerSku":"HT-H02-LBH-BK","finalName":"H01 Label Holder (Black)"},
+  "B0HSRFV7QJ":{"sellerSku":"HT-4X6-TL-P2","finalName":"4x6 Label (350 Label, Pack of 2)"},
+  "B0HSR8L4ZZ":{"sellerSku":"HT-4X6-TL-P4","finalName":"4x6 Label (350 Label, Pack of 4)"},
+  "B0HSSJXCYH":{"sellerSku":"HT-4X6-TL4-P3","finalName":"4x6 Label (400 Label, Pack of 3)"},
 };
